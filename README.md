@@ -40,7 +40,8 @@ A single small VPS can host thousands of rooms.
 
 - **Rooms without accounts** — short code or invite link; rooms live in memory and disappear 30 minutes after the last person leaves.
 - **Four ways to watch together**
-  - **YouTube and Vimeo links** through their official embedded players, kept in sync through their APIs.
+  - **Platform links** through each site's official embedded player, kept in sync through its API: **YouTube**, **Vimeo**, **Twitch videos** and **Streamable**.
+    Twitch live streams and clips are embedded too, but they have no playhead to control, so everyone just watches.
   - **Direct links** — `.mp4`, `.webm` and **HLS** (`.m3u8`, via [hls.js](https://github.com/video-dev/hls.js), loaded only when needed; Safari and recent Chrome play HLS natively).
   - **Share your file (peer to peer)** — the file is played in your browser and streamed to friends over WebRTC. Everyone can pause and seek; your player obeys.
   - **Share a tab or window (peer to peer)** — with sound, as a live stream.
@@ -50,6 +51,7 @@ A single small VPS can host thousands of rooms.
 - **Your own quality** — a gear menu in the player: every viewer of a shared file or tab picks 1080p / 720p / 480p / 360p / Auto for their own stream, and HLS links offer their quality ladder.
 - **One share at a time** — when someone starts sharing a file or a tab, everyone (including a previous sharer) switches to it automatically. No confirmation, no flip-flopping.
 - **Self-healing connection** — the server pings every 15 s; a silent connection (phone asleep, network change) is replaced automatically, so no page refresh is needed.
+- **Same-file check** — when everyone opens their own copy, the room compares lengths and warns if they differ by more than a second (a different cut would drift out of sync).
 - **Late join** — a person who joins while the video plays lands on the right second.
 - **Offer a link** — optionally offer your link to the room; others get a one-click "Use it" button.
 - **Phone-first layout** — pinned player while you scroll, big touch targets, safe-area aware, landscape mode that fits the screen,
@@ -78,7 +80,8 @@ The browser itself downloads the video, so the host has to allow it:
 
 | Source | Works when |
 |---|---|
-| YouTube, Vimeo | The video allows embedding (most do). |
+| YouTube, Vimeo, Twitch videos, Streamable | The video allows embedding (most do). Twitch plays ads inside the embed for viewers who are not logged in; while an ad runs, that person can briefly be out of sync. |
+| Twitch live streams and clips | Embedded, but not synchronized (nothing to sync). |
 | Direct file (`.mp4`, `.webm`) | The host allows playback from other sites (most do). |
 | HLS (`.m3u8`) | Safari / recent Chrome: usually yes. Other browsers need the host to send CORS headers (`Access-Control-Allow-Origin`). |
 | Local file | Always. Either share it with the room, or everyone opens the **same cut**, or positions will not match. |
@@ -191,7 +194,8 @@ The room state is one snapshot, so it is idempotent and a slow client simply get
   "source": { "kind": "yt", "id": "aqz-KE-bpKQ", "by": "e9e027b8b0e0" } }
 ```
 
-`source` is what the room offers to watch: `link` (a URL), `yt`, `vimeo`, or `p2p` (a name, a duration or `live`, and who is sharing).
+`source` is what the room offers to watch: `link` (a URL), `embed` (a `provider` — `youtube`, `vimeo`, `twitch`, `streamable` — plus a strictly validated `id`), or `p2p` (a name, a duration or `live`, and who is sharing).
+`media` is set when people who opened their own copy report lengths that differ by more than a second (`{ lo, hi, n }`).
 A `p2p` offer disappears when its owner leaves.
 
 A client computes where the shared playhead is *now* as `pos + (serverNow − at) / 1000` while playing, and `pos` while paused.
@@ -201,7 +205,7 @@ The sender stamps its position with its own server-time estimate, which cancels 
 
 **Staying in sync without echo loops.** A player only announces a local action when it *differs* from what the room already
 believes, so a player that merely obeyed the room never speaks. Drift is checked once a second: gap above 1.2 s → seek,
-above 0.15 s → playback speed 0.95 or 1.05, otherwise 1.0. The same engine drives HTML video, YouTube and Vimeo through a small adapter.
+above 0.15 s → playback speed 0.95 or 1.05, otherwise 1.0. The same engine drives HTML video, YouTube, Vimeo, Twitch and Streamable through a small adapter; players with quirks (Vimeo and Streamable play by themselves after a seek, Twitch pauses around a seek or an ad) get a guard of their own, never one in the common path.
 
 **Peer-to-peer sharing.** The sharer captures its playing file (`captureStream`) or tab (`getDisplayMedia`). A viewer sends a WebRTC offer to the
 sharer through the room's `signal` messages, the sharer answers, and the video then flows directly between the two browsers
@@ -230,6 +234,9 @@ frontend/
 │   ├── lib/useRoom.ts       SSE connection and message sending
 │   ├── lib/engine.ts        the sync engine (one player ↔ the room's playhead)
 │   ├── lib/adapters.ts      HTML video, YouTube and Vimeo behind one interface
+│   ├── lib/embedAdapters.ts Twitch, Streamable (player.js protocol) and the provider factory
+│   ├── lib/embed.ts         recognising platform links
+│   ├── lib/audioMix.ts      one outgoing audio track that sound inputs can join later
 │   ├── lib/p2p.ts           WebRTC sharer and viewer
 │   ├── lib/clock.ts         server clock estimate and playhead maths
 │   ├── lib/attach.ts        links → <video>, hls.js on demand, friendly errors
@@ -248,7 +255,24 @@ docs/                        screenshots used in this README
 - **Sharing a tab** works in Chrome and Edge (with tab sound) and Firefox (video only: Firefox cannot share sound, and on Linux/Wayland it never can), on computers. Play and pause in the shared tab itself; viewers just watch.
 - Playback speed is not synced (the speed is used internally to nudge small drifts).
 - If someone's video buffers for a long time, the others keep playing; that person catches up with a seek.
-- VK Video and other embed APIs are not supported yet. No chat, no subtitles sync. Pull requests are welcome.
+- **Platforms that cannot be added:** Dailymotion (its player API needs a partner player ID), PeerTube (its player library is AGPL-3.0, which would change this project's license), and every DRM service (Netflix, Disney+ …), which no website can play or share.
+  VK Video and Rutube are not included. No chat, no subtitles sync. Pull requests are welcome.
+
+### Sound from the whole system (why a browser can't, and what to do)
+
+Discord is a native app and can capture the operating system's audio. A website only gets what the browser's share dialog hands over:
+
+| Browser / system | Tab sound | Whole-system sound |
+|---|---|---|
+| Chrome / Edge, any OS | yes ("Also share tab audio") | Windows only: choose **Entire screen** and tick **Share system audio** |
+| Chrome / Edge on Linux or macOS | yes | no |
+| Firefox | **never** | no |
+| Wayland (any browser) | no, the screen-share portal carries no audio | no |
+
+The app works around it: while sharing a tab or window, **Add sound from a device** mixes any sound input into the share, without reconnecting anyone.
+On Linux (PulseAudio or PipeWire) pick the input named **Monitor of …**: that is everything you hear. Allow microphone access once so the browser shows the device names;
+the app only uses it to reach the device you pick, and turns echo cancellation and noise suppression off so music and film sound stay clean.
+On macOS install a virtual audio device (BlackHole, Loopback) and pick it the same way.
 
 ### Your own STUN / TURN servers
 
@@ -272,7 +296,7 @@ Credentials in a frontend build are public, so use short-lived TURN credentials.
 No analytics, no cookies, no accounts, no personal data on the server. Files you open are read locally and never uploaded.
 Things worth knowing:
 
-- Using a **YouTube** or **Vimeo** link loads their player, which talks to them (YouTube through its privacy-enhanced domain, Vimeo with tracking off).
+- Using a **YouTube**, **Vimeo**, **Twitch** or **Streamable** link loads their player, which talks to them (YouTube through its privacy-enhanced domain, Vimeo with tracking off). The page sends no referrer, except that Streamable's player gets this site's address, which it needs to answer.
 - **Peer-to-peer sharing** asks a STUN server for your public address, and the people in the room who watch your share connect directly to your IP address.
   Only share with people you trust.
 - The room code is the only secret. Anyone who has it can join, so don't post it publicly.

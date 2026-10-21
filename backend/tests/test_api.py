@@ -62,9 +62,9 @@ async def test_source_and_signal_over_http(client, app):
     a, b = app.state.rooms.join(room), app.state.rooms.join(room)
     url = f"/api/rooms/{code}/msg"
     me = {"member": a.id, "token": a.token}
-    assert (await client.post(url, json={**me, "t": "source", "kind": "yt", "id": "aqz-KE-bpKQ"})).status_code == 204
-    assert room.source["kind"] == "yt"
-    assert (await client.post(url, json={**me, "t": "source", "kind": "yt", "id": "nope"})).status_code == 422
+    assert (await client.post(url, json={**me, "t": "source", "kind": "embed", "provider": "youtube", "id": "aqz-KE-bpKQ"})).status_code == 204
+    assert room.source["provider"] == "youtube"
+    assert (await client.post(url, json={**me, "t": "source", "kind": "embed", "provider": "youtube", "id": "nope"})).status_code == 422
     assert (await client.post(url, json={**me, "t": "signal", "to": b.id, "sig": "offer", "sdp": "v=0"})).status_code == 204
     assert (await client.post(url, json={**me, "t": "signal", "to": "ghost", "sig": "offer", "sdp": "v=0"})).status_code == 404
     assert (await client.post(url, json={**me, "t": "signal", "to": b.id, "sig": "offer", "sdp": "x" * 31_000})).status_code == 422

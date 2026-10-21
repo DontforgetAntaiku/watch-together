@@ -15,10 +15,20 @@ MAX_POSITION = 60 * 60 * 24  # a day, far beyond any video
 MAX_URL = 2048
 MAX_CLOCK_SKEW_MS = 3000
 MAX_SDP = 30_000
-SOURCE_KINDS = {"link", "yt", "vimeo", "p2p"}
+MEDIA_TOLERANCE = 1.0  # seconds: two copies of one video rarely differ by more than container rounding
+SOURCE_KINDS = {"link", "embed", "p2p"}
 QUALITY = re.compile(r"^(auto|[1-9]\d{2,3})$")
-YT_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
-VIMEO_ID = re.compile(r"^\d{1,12}$")
+# Platforms whose official players we embed. The id formats are strict: they end up in an iframe address.
+EMBED_ID = {
+    "youtube": re.compile(r"^[A-Za-z0-9_-]{11}$"),
+    "vimeo": re.compile(r"^\d{1,12}$"),
+    "streamable": re.compile(r"^[a-z0-9]{3,12}$"),
+}
+TWITCH_ID = {
+    "channel": re.compile(r"^[A-Za-z0-9_]{3,25}$"),
+    "video": re.compile(r"^\d{5,12}$"),
+    "clip": re.compile(r"^[A-Za-z0-9_-]{8,100}$"),
+}
 VIMEO_HASH = re.compile(r"^[a-f0-9]{6,20}$")
 
 
@@ -45,6 +55,7 @@ class Member:
     id: str
     token: str
     queue: asyncio.Queue[dict[str, Any]] = field(default_factory=lambda: asyncio.Queue(maxsize=64))
+    dur: float | None = None  # length of the video this member has loaded themselves (link or file)
     tokens: float = 0.0
     refilled: float = field(default_factory=time.monotonic)
 
@@ -61,6 +72,13 @@ class Room:
     source: dict[str, Any] | None = None  # what the room offers to watch (a link, an embed or a P2P share)
     empty_since: float | None = field(default_factory=time.monotonic)
 
+    def media(self) -> dict[str, float | int] | None:
+        """Set when people who opened their own copy report clearly different lengths (probably different cuts)."""
+        durs = [m.dur for m in self.members.values() if m.dur is not None]
+        if len(durs) < 2 or max(durs) - min(durs) <= MEDIA_TOLERANCE:
+            return None
+        return {"lo": min(durs), "hi": max(durs), "n": len(durs)}
+
     def snapshot(self) -> dict[str, Any]:
         return {
             "t": "state",
@@ -71,6 +89,7 @@ class Room:
             "by": self.by,
             "n": len(self.members),
             "source": self.source,
+            "media": self.media(),
         }
 
 
@@ -104,18 +123,24 @@ def _clean_source(msg: dict[str, Any], by: str) -> dict[str, Any] | None:
         if url is None:
             raise RoomError("bad_value")
         return {"kind": kind, "url": url, "by": by}
-    if kind == "yt":
-        vid = msg.get("id")
-        if not isinstance(vid, str) or not YT_ID.match(vid):
+    if kind == "embed":
+        provider, vid = msg.get("provider"), msg.get("id")
+        if not isinstance(vid, str):
             raise RoomError("bad_value")
-        return {"kind": kind, "id": vid, "by": by}
-    if kind == "vimeo":
-        vid, key = msg.get("id"), msg.get("hash")
-        if not isinstance(vid, str) or not VIMEO_ID.match(vid):
+        if provider == "twitch":
+            kind_of = msg.get("type")
+            if kind_of not in TWITCH_ID or not TWITCH_ID[kind_of].match(vid):
+                raise RoomError("bad_value")
+            return {"kind": kind, "provider": provider, "type": kind_of, "id": vid, "by": by}
+        if provider not in EMBED_ID or not EMBED_ID[provider].match(vid):
             raise RoomError("bad_value")
-        if key is not None and (not isinstance(key, str) or not VIMEO_HASH.match(key)):
-            raise RoomError("bad_value")
-        return {"kind": kind, "id": vid, "hash": key, "by": by}
+        out: dict[str, Any] = {"kind": kind, "provider": provider, "id": vid, "by": by}
+        if provider == "vimeo":
+            key = msg.get("hash")
+            if key is not None and (not isinstance(key, str) or not VIMEO_HASH.match(key)):
+                raise RoomError("bad_value")
+            out["hash"] = key
+        return out
     name = msg.get("name")
     if not isinstance(name, str) or not name.strip() or len(name) > 120 or any(ord(ch) < 32 for ch in name):
         raise RoomError("bad_value")
@@ -198,6 +223,10 @@ class RoomManager:
             room.source = _clean_source(msg, member.id)
             room.rev += 1
             room.by = member.id
+            self._broadcast(room)
+            return
+        if kind == "media":
+            member.dur = None if msg.get("dur") is None else _num(msg.get("dur"), 0, MAX_POSITION)
             self._broadcast(room)
             return
         if kind == "signal":

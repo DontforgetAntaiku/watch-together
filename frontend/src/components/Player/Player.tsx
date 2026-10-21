@@ -34,12 +34,8 @@ export function Player({ source, state, clock, myId, send, onSignal, onVideo, on
       {(source?.kind === 'link' || source?.kind === 'file') && (
         <VideoPlayer key={source.url} mode="media" url={source.url} onVideo={onVideo} {...common} />
       )}
-      {(source?.kind === 'yt' || source?.kind === 'vimeo') && (
-        <EmbedPlayer
-          key={source.kind + source.id}
-          embed={source.kind === 'yt' ? { kind: 'yt', id: source.id } : { kind: 'vimeo', id: source.id, hash: source.hash }}
-          {...common}
-        />
+      {source?.kind === 'embed' && (
+        <EmbedPlayer key={JSON.stringify(source.embed)} embed={source.embed} {...common} />
       )}
       {source?.kind === 'watch' && (
         <StreamPlayer

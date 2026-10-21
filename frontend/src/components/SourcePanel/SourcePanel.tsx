@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RoomSource } from '../../lib/api'
+import type { AudioInput } from '../../lib/audioMix'
 import { canCaptureElement, canShareScreen, isFirefox } from '../../lib/p2p'
 import { offerLabel } from '../../lib/source'
 import type { Source } from '../../lib/source'
+import { SoundPicker } from '../SoundPicker/SoundPicker'
 import './SourcePanel.css'
 
 type Props = {
@@ -15,6 +17,10 @@ type Props = {
   viewers: number
   sendInfo: string | null
   notice: string | null
+  sound: { devices: AudioInput[] | null; active: string | null; busy: boolean; error: string | null }
+  onSoundList: () => void
+  onSoundUse: (id: string) => void
+  onSoundStop: () => void
   onUrl: (url: string, share: boolean) => void
   onFile: (file: File) => void
   onStopOffer: () => void
@@ -30,7 +36,7 @@ export function SourcePanel(p: Props) {
   const [share, setShare] = useState(false)
   const file = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(true)
-  const loaded = p.current?.kind === 'link' || p.current?.kind === 'file' || p.current?.kind === 'yt' || p.current?.kind === 'vimeo' ? p.current.kind + (('url' in p.current && p.current.url) || ('id' in p.current && p.current.id) || '') : p.current?.kind
+  const loaded = p.current ? p.current.kind + (('url' in p.current && p.current.url) || ('embed' in p.current && JSON.stringify(p.current.embed)) || '') : null
 
   // On a phone, tuck the panel away once a video is loaded so the player has the room.
   useEffect(() => {
@@ -95,6 +101,17 @@ export function SourcePanel(p: Props) {
               {t('source.stopShare')}
             </button>
           </div>
+        )}
+        {p.sharing === 'screen' && (
+          <SoundPicker
+            devices={p.sound.devices}
+            active={p.sound.active}
+            busy={p.sound.busy}
+            error={p.sound.error}
+            onList={p.onSoundList}
+            onUse={p.onSoundUse}
+            onStop={p.onSoundStop}
+          />
         )}
 
         <h3 className="source__sub">{t('source.linkTitle')}</h3>

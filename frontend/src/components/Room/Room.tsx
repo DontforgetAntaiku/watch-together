@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RoomSource } from '../../lib/api'
-import { parseEmbed } from '../../lib/embed'
+import { AudioMix, listAudioInputs, openAudioInput } from '../../lib/audioMix'
+import type { AudioInput } from '../../lib/audioMix'
+import { embedToInput, parseEmbed } from '../../lib/embed'
 import { Sharer, captureVideo, isFirefox } from '../../lib/p2p'
 import type { Capture } from '../../lib/p2p'
 import { go } from '../../lib/router'
-import { fromOffer, hostLabel } from '../../lib/source'
+import { formatTime } from '../../lib/fmt'
+import { embedLabel, fromOffer, hostLabel } from '../../lib/source'
 import type { Source } from '../../lib/source'
 import { useRoom } from '../../lib/useRoom'
 import { LangSwitch } from '../LangSwitch/LangSwitch'
@@ -31,6 +34,13 @@ export function Room({ code }: { code: string }) {
   const sharingRef = useRef<Sharing>(null)
   const sharer = useRef<Sharer | null>(null)
   const sendRef = useRef(send)
+  const mix = useRef<AudioMix | null>(null)
+  const display = useRef<MediaStream | null>(null)
+  const deviceStream = useRef<MediaStream | null>(null)
+  const [devices, setDevices] = useState<AudioInput[] | null>(null)
+  const [deviceOn, setDeviceOn] = useState<string | null>(null)
+  const [soundBusy, setSoundBusy] = useState(false)
+  const [soundError, setSoundError] = useState<string | null>(null)
   const captureMode = useRef<'direct' | 'canvas'>('direct')
   const [sendInfo, setSendInfo] = useState<string | null>(null)
 
@@ -46,8 +56,16 @@ export function Room({ code }: { code: string }) {
   const stopSharing = useCallback(
     (tellRoom = true) => {
       sharer.current?.closeAll()
-      screen.current?.getTracks().forEach((t) => t.stop())
+      display.current?.getTracks().forEach((t) => t.stop())
+      display.current = null
       screen.current = null
+      deviceStream.current?.getTracks().forEach((t) => t.stop())
+      deviceStream.current = null
+      mix.current?.close()
+      mix.current = null
+      setDeviceOn(null)
+      setDevices(null)
+      setSoundError(null)
       void fileCapture.current?.then((c) => c.stop(), () => {})
       fileCapture.current = null
       setSendInfo(null)
@@ -72,7 +90,9 @@ export function Room({ code }: { code: string }) {
   useEffect(
     () => () => {
       sharer.current?.closeAll()
-      screen.current?.getTracks().forEach((t) => t.stop())
+      display.current?.getTracks().forEach((t) => t.stop())
+      deviceStream.current?.getTracks().forEach((t) => t.stop())
+      mix.current?.close()
       void fileCapture.current?.then((c) => c.stop(), () => {})
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current)
     },
@@ -186,8 +206,9 @@ export function Room({ code }: { code: string }) {
     lastOffer.current = key
     const wasSharing = !!sharingRef.current
     if (wasSharing) stopSharing(false)
-    replaceSource(fromOffer(offered))
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- tell the person why their screen changed
+    const next = fromOffer(offered)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the room told us what to watch
+    if (next) replaceSource(next)
     if (wasSharing) setNotice(t('room.takenOver'))
   }, [state?.source, myId, stopSharing, replaceSource, t])
 
@@ -197,12 +218,9 @@ export function Room({ code }: { code: string }) {
 
   const onUrl = (url: string, offer: boolean) => {
     const embed = parseEmbed(url)
-    if (embed?.kind === 'yt') {
-      replaceSource({ kind: 'yt', id: embed.id, label: t('source.youtube') })
-      if (offer) send({ t: 'source', kind: 'yt', id: embed.id })
-    } else if (embed?.kind === 'vimeo') {
-      replaceSource({ kind: 'vimeo', id: embed.id, hash: embed.hash, label: t('source.vimeo') })
-      if (offer) send({ t: 'source', kind: 'vimeo', id: embed.id, hash: embed.hash })
+    if (embed) {
+      replaceSource({ kind: 'embed', embed, label: embedLabel(embed) })
+      if (offer) send({ t: 'source', ...embedToInput(embed) })
     } else {
       replaceSource({ kind: 'link', url, label: hostLabel(url) })
       if (offer) send({ t: 'source', kind: 'link', url })
@@ -243,7 +261,12 @@ export function Room({ code }: { code: string }) {
       return
     }
     replaceSource({ kind: 'screen', label: t('room.tabName') })
-    screen.current = stream
+    // Video from the picker, sound through our own mixer so a device can be added to a running share.
+    display.current = stream
+    const audio = new AudioMix()
+    mix.current = audio
+    if (stream.getAudioTracks().length > 0) audio.add(new MediaStream(stream.getAudioTracks()))
+    screen.current = new MediaStream([...stream.getVideoTracks(), audio.track])
     stream.getVideoTracks()[0]?.addEventListener('ended', () => stopSharing())
     ensureSharer()
     setShare('screen')
@@ -251,6 +274,43 @@ export function Room({ code }: { code: string }) {
     if (stream.getAudioTracks().length === 0) {
       setNotice(isFirefox ? t('room.noAudioFirefox') : t('room.noAudio'))
     }
+  }
+
+  const onSoundList = async () => {
+    setSoundBusy(true)
+    setSoundError(null)
+    try {
+      setDevices(await listAudioInputs())
+    } catch {
+      setSoundError(t('sound.denied'))
+    } finally {
+      setSoundBusy(false)
+    }
+  }
+  const onSoundUse = async (id: string) => {
+    if (!mix.current) return
+    setSoundBusy(true)
+    setSoundError(null)
+    try {
+      const stream = await openAudioInput(id)
+      deviceStream.current = stream
+      mix.current.add(stream)
+      setDeviceOn(id)
+      setNotice(null)
+    } catch {
+      setSoundError(t('sound.failed'))
+    } finally {
+      setSoundBusy(false)
+    }
+  }
+  const onSoundStop = () => {
+    const stream = deviceStream.current
+    if (stream) {
+      mix.current?.remove(stream)
+      stream.getTracks().forEach((track) => track.stop())
+    }
+    deviceStream.current = null
+    setDeviceOn(null)
   }
 
   const offer: RoomSource | null = state?.source ?? null
@@ -284,6 +344,11 @@ export function Room({ code }: { code: string }) {
 
       <main className="room__main">
         <RoomCode code={code} />
+        {state?.media && (source?.kind === 'link' || source?.kind === 'file') && (
+          <p className="room__warn" role="status">
+            {t('room.differentCuts', { lo: formatTime(state.media.lo), hi: formatTime(state.media.hi) })}
+          </p>
+        )}
         <div className="room__grid">
           <div className="room__stage">
             <Player
@@ -309,10 +374,17 @@ export function Room({ code }: { code: string }) {
             viewers={viewers}
             sendInfo={sendInfo}
             notice={notice}
+            sound={{ devices, active: deviceOn, busy: soundBusy, error: soundError }}
+            onSoundList={onSoundList}
+            onSoundUse={onSoundUse}
+            onSoundStop={onSoundStop}
             onUrl={onUrl}
             onFile={onFile}
             onStopOffer={() => send({ t: 'source', kind: null })}
-            onUseOffer={() => offer && replaceSource(fromOffer(offer))}
+            onUseOffer={() => {
+              const next = offer && fromOffer(offer)
+              if (next) replaceSource(next)
+            }}
             onShareFile={onShareFile}
             onShareScreen={onShareScreen}
             onStopShare={() => stopSharing()}

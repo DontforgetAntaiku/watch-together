@@ -28,7 +28,9 @@ class Message(BaseModel):
     ts: float | None = None
     url: str | None = Field(default=None, max_length=2048)
     kind: str | None = Field(default=None, max_length=16)
-    id: str | None = Field(default=None, max_length=32)
+    id: str | None = Field(default=None, max_length=100)
+    provider: str | None = Field(default=None, max_length=16)
+    type: str | None = Field(default=None, max_length=16)
     hash: str | None = Field(default=None, max_length=32)
     name: str | None = Field(default=None, max_length=120)
     dur: float | None = None

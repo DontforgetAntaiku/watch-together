@@ -15,6 +15,8 @@ export interface MediaAdapter {
   setRate(r: number): void
   /** The player starts playing by itself after a seek while paused (Vimeo); such a `play` event is not a person. */
   quirkPlayAfterSeek?: boolean
+  /** The player pauses by itself around a seek or an ad (Twitch); such a `pause` event is not a person. */
+  quirkPauseAfterSeek?: boolean
 }
 
 const SEEK_TOLERANCE_ON_STATE = 0.4 // seconds: smaller gaps are not worth a jump
@@ -117,6 +119,10 @@ export class SyncEngine {
   handlePause() {
     const s = this.state
     if (!s) return
+    if (this.adapter.quirkPauseAfterSeek && s.playing && performance.now() - this.lastProgrammaticAt < 2500) {
+      void this.adapter.play().catch(() => {})
+      return
+    }
     if (s.playing || Math.abs(this.adapter.time() - s.pos) > 0.5) this.announce('pause')
   }
 

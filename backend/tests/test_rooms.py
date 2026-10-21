@@ -116,14 +116,42 @@ def test_embed_sources_validated():
     m = make()
     r = m.create()
     a = m.join(r)
-    m.handle(r, a.id, a.token, {"t": "source", "kind": "yt", "id": "dQw4w9WgXcQ"})
-    assert r.source["id"] == "dQw4w9WgXcQ"
-    m.handle(r, a.id, a.token, {"t": "source", "kind": "vimeo", "id": "76979871", "hash": "abcdef1234"})
-    assert r.source["hash"] == "abcdef1234"
-    for bad in ({"kind": "yt", "id": "short"}, {"kind": "yt", "id": "a b c d e f g"}, {"kind": "vimeo", "id": "abc"},
-                {"kind": "vimeo", "id": "1", "hash": "ZZ"}, {"kind": "nope"}):
-        with pytest.raises(RoomError):
-            m.handle(r, a.id, a.token, {"t": "source", **bad})
+    ok = [
+        {"provider": "youtube", "id": "dQw4w9WgXcQ"},
+        {"provider": "vimeo", "id": "76979871", "hash": "abcdef1234"},
+        {"provider": "streamable", "id": "moo"},
+        {"provider": "twitch", "type": "video", "id": "2902385151"},
+        {"provider": "twitch", "type": "channel", "id": "twitch"},
+        {"provider": "twitch", "type": "clip", "id": "FriendlyAmazingSlothFutureMan"},
+    ]
+    for source in ok:
+        m.handle(r, a.id, a.token, {"t": "source", "kind": "embed", **source})
+        assert r.source["provider"] == source["provider"] and r.source["by"] == a.id
+    assert r.source["type"] == "clip"
+
+
+@pytest.mark.parametrize("bad", [
+    {"provider": "youtube", "id": "short"},
+    {"provider": "youtube", "id": "a b c d e f g"},
+    {"provider": "youtube", "id": "dQw4w9WgXcQ/../../x"},
+    {"provider": "vimeo", "id": "abc"},
+    {"provider": "vimeo", "id": "1", "hash": "ZZ"},
+    {"provider": "rutube", "id": "d07af4321b54d2e8a46b4fe015081314"},
+    {"provider": "streamable", "id": "../x"},
+    {"provider": "twitch", "id": "twitch"},
+    {"provider": "twitch", "type": "video", "id": "twitch"},
+    {"provider": "twitch", "type": "channel", "id": "no spaces"},
+    {"provider": "nope", "id": "x"},
+    {"id": "dQw4w9WgXcQ"},
+    {"provider": "youtube", "id": 12345678901},
+])
+def test_bad_embed_rejected(bad):
+    m = make()
+    r = m.create()
+    a = m.join(r)
+    with pytest.raises(RoomError):
+        m.handle(r, a.id, a.token, {"t": "source", "kind": "embed", **bad})
+    assert r.source is None
 
 
 def test_p2p_source_cleared_when_sharer_leaves():
@@ -219,3 +247,28 @@ def test_quality_signal_relayed_and_validated():
     for bad in ("0", "12", "99999", "720p", "", None, "auto; drop"):
         with pytest.raises(RoomError):
             m.handle(r, b.id, b.token, {"t": "signal", "to": a.id, "sig": "quality", "sdp": bad})
+
+
+def test_media_mismatch_reported_only_when_lengths_differ():
+    m = make(max_members=3)
+    r = m.create()
+    a, b, c = m.join(r), m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "media", "dur": 3600.0})
+    assert r.snapshot()["media"] is None  # one report is nothing to compare
+    m.handle(r, b.id, b.token, {"t": "media", "dur": 3600.4})
+    assert r.snapshot()["media"] is None  # within tolerance
+    m.handle(r, c.id, c.token, {"t": "media", "dur": 3512.0})
+    assert r.snapshot()["media"] == {"lo": 3512.0, "hi": 3600.4, "n": 3}
+    m.leave(r, c)
+    assert r.snapshot()["media"] is None
+    m.handle(r, b.id, b.token, {"t": "media", "dur": None})
+    assert r.snapshot()["media"] is None
+
+
+@pytest.mark.parametrize("dur", [-1, "5", float("nan"), 1e9, True])
+def test_bad_media_duration_rejected(dur):
+    m = make()
+    r = m.create()
+    a = m.join(r)
+    with pytest.raises(RoomError):
+        m.handle(r, a.id, a.token, {"t": "media", "dur": dur})

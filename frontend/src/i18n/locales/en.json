@@ -33,14 +33,15 @@
     "back": "Back to start",
     "shareEnded": "The share ended.",
     "shareCancelled": "Sharing was cancelled or is not allowed here.",
-    "noAudio": "No sound is being shared. Choose a browser tab and tick \"Also share tab audio\" in the picker.",
+    "noAudio": "No sound is being shared. Choose a browser tab and tick \"Also share tab audio\" in the picker, or add sound from a device below.",
     "tabName": "Tab or window",
     "joinFailed": "Could not join this room. It may be full.",
     "reset": "Connection was reset. Reconnecting…",
-    "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Friends will see the picture without sound. For sound use Chrome or Edge, or share the video file instead.",
+    "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Add sound from a device below (on Linux the input named \"Monitor of …\"), use Chrome or Edge, or share the video file instead.",
     "takenOver": "Someone else started sharing, so your share was stopped. Now watching theirs.",
     "noFrames": "No picture is leaving this device even after switching the sharing method. This phone or browser cannot share video files. Share from a computer, or send the file.",
-    "switchedCapture": "No picture was going out, so the sharing method was switched automatically."
+    "switchedCapture": "No picture was going out, so the sharing method was switched automatically.",
+    "differentCuts": "Your copies of the video differ in length ({{lo}} to {{hi}}), so they are probably different cuts. Everyone should open the same file or link, or picture and sound will not line up."
   },
   "code": {
     "room": "Room",
@@ -69,7 +70,7 @@
     "viewers_other": "{{count}} people are watching",
     "stopShare": "Stop sharing",
     "linkTitle": "Link",
-    "linkHint": "YouTube, Vimeo, or a direct video link (.mp4, .webm, .m3u8). Each person loads it themselves.",
+    "linkHint": "YouTube, Vimeo, Twitch, Streamable, or a direct video link (.mp4, .webm, .m3u8). Each person loads it themselves.",
     "linkLabel": "Video link",
     "linkPlaceholder": "Paste a video link",
     "load": "Load link",
@@ -84,10 +85,6 @@
     "tabTitle": "Browser tab or window",
     "tabHint": "For sites that only play on their own page: open the video in another tab and share that tab with sound.",
     "shareTab": "Share a tab or window",
-    "aYoutube": "a YouTube video",
-    "aVimeo": "a Vimeo video",
-    "youtube": "YouTube video",
-    "vimeo": "Vimeo video",
     "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file.",
     "sending": "Sending {{info}}"
   },
@@ -107,7 +104,8 @@
     "connecting": "Connecting to the sharer…",
     "failed": "Could not connect directly to the sharer. Strict networks or VPNs can block this. Ask them to send the file instead, or try again.",
     "retry": "Try again",
-    "qualityAuto": "Auto"
+    "qualityAuto": "Auto",
+    "notSynced": "Live streams and clips cannot be synchronized: everyone watches on their own."
   },
   "controls": {
     "play": "Play",
@@ -146,6 +144,37 @@
     "vimeoPlay": "Vimeo would not play this video (private, removed or embedding disabled).",
     "noCapture": "This browser cannot share a playing file. Use Chrome, Edge or Firefox on a computer.",
     "noPicture": "The video has no picture to share yet. Press play once and try again.",
-    "noPictureViewer": "Connected, but no picture is arriving. The sharer's device may not be able to share this file (phones often cannot). Ask them to share from a computer, or send the file."
+    "noPictureViewer": "Connected, but no picture is arriving. The sharer's device may not be able to share this file (phones often cannot). Ask them to share from a computer, or send the file.",
+    "embedBlocked": "This video did not load. It may be private, removed, or not allowed to be embedded on other sites.",
+    "twitchLoad": "Twitch could not be loaded (blocked or offline)."
+  },
+  "sound": {
+    "title": "Add sound from a device",
+    "hint": "Shares more than the tab. On Linux pick the input named \"Monitor of …\" to send everything you hear. On Windows Chrome you can instead choose \"Entire screen\" and tick \"Share system audio\".",
+    "choose": "Choose a sound input",
+    "device": "Sound input",
+    "add": "Add",
+    "remove": "Remove",
+    "on": "Adding sound from: {{name}}",
+    "denied": "Sound inputs could not be listed. Allow microphone access for this site (it is only used to reach the device you pick).",
+    "failed": "That input could not be opened."
+  },
+  "embed": {
+    "label": {
+      "youtube": "YouTube video",
+      "vimeo": "Vimeo video",
+      "twitch": "Twitch video",
+      "twitchLive": "Twitch stream",
+      "twitchClip": "Twitch clip",
+      "streamable": "Streamable video"
+    },
+    "offer": {
+      "youtube": "a YouTube video",
+      "vimeo": "a Vimeo video",
+      "twitch": "a Twitch video",
+      "twitchLive": "a Twitch stream",
+      "twitchClip": "a Twitch clip",
+      "streamable": "a Streamable video"
+    }
   }
 }

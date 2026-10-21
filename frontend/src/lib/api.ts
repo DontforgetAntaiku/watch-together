@@ -3,17 +3,17 @@ import i18n from '../i18n'
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const CODE_LENGTH = 6
 
+import type { Embed } from './embed'
+
 export type RoomSource =
   | { kind: 'link'; url: string; by: string }
-  | { kind: 'yt'; id: string; by: string }
-  | { kind: 'vimeo'; id: string; hash: string | null; by: string }
+  | { kind: 'embed'; provider: string; id: string; type?: string; hash?: string | null; by: string }
   | { kind: 'p2p'; name: string; dur: number | null; live: boolean; by: string }
 
 export type SourceInput =
   | { kind: null }
   | { kind: 'link'; url: string }
-  | { kind: 'yt'; id: string }
-  | { kind: 'vimeo'; id: string; hash?: string | null }
+  | ({ kind: 'embed' } & Embed)
   | { kind: 'p2p'; name: string; dur?: number | null; live?: boolean }
 
 export type Signal = { t: 'signal'; from: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp: string | null }
@@ -27,11 +27,14 @@ export type RoomState = {
   by: string
   n: number
   source: RoomSource | null
+  /** Set when people who opened their own copy report clearly different lengths. */
+  media: { lo: number; hi: number; n: number } | null
 }
 
 export type ClientMessage =
   | { t: 'play' | 'pause' | 'seek'; pos: number; ts: number }
   | ({ t: 'source' } & SourceInput)
+  | { t: 'media'; dur: number | null }
   | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp?: string }
 
 export class ApiError extends Error {

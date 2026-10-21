@@ -77,6 +77,15 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     return () => onVideo?.(null)
   }, [onVideo])
 
+  // Tell the room how long my copy is, so a different cut is noticed (the room compares everybody's lengths).
+  useEffect(() => {
+    if (mode === 'media' && duration > 0) send({ t: 'media', dur: duration })
+  }, [mode, duration, send])
+  useEffect(() => {
+    if (mode !== 'media') return
+    return () => send({ t: 'media', dur: null })
+  }, [mode, send])
+
   // Media mode: point the element at the link or file.
   useEffect(() => {
     const v = video.current
