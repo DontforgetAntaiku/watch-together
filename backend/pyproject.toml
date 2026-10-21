@@ -1,0 +1,20 @@
+[project]
+name = "watch-together-backend"
+version = "0.1.0"
+description = "Tiny sync server for the watch-together room (rooms in memory, SSE + POST)"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi>=0.141.1",
+  "uvicorn>=0.52.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28.1",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
