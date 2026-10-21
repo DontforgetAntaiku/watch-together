@@ -19,8 +19,8 @@ Free · Open source · No account · No install · Installable app (PWA) · Engl
 
 1. **Create a room.** One click gives you a 6-character code (`K7M2QX`) and an invite link.
 2. **Get a video to everyone**, whichever way suits you:
-   - **Each opens the same thing themselves**: paste a YouTube or Vimeo link, a direct video link (`.mp4`, `.webm`, `.m3u8`), or open a file from your own disk.
-   - **Share your file**: friends watch it straight from your browser, no copy needed.
+   - **Paste a link and press Play**: it starts for the whole room, and every browser loads it by itself. YouTube, Vimeo, Twitch and Streamable links use the platform's own player; a direct video link (`.mp4`, `.webm`, `.m3u8`) plays as a video; anything else is looked up (see below) when the server offers that.
+   - **Open a file** from your own disk (just for you), then **share it**: friends watch it straight from your browser, no copy needed.
    - **Share a browser tab or window** (with sound): for sites that only play on their own page.
 3. **Press play.** Play, pause and seek are shared by everyone. Late joiners catch up on their own.
 
@@ -38,6 +38,9 @@ A single small VPS can host thousands of rooms.
 
 ## Features
 
+- **A shared watch list** — every link you play is kept in the room's list. Anyone can add (`+`), play, move up or remove an entry, and the room plays the next one by itself when a video ends.
+- **The room waits for slow connections** — if one person is still loading, everybody pauses at the same spot and the others see "Waiting for 1 person to load…"; nobody is dragged around by corrective seeks, so nobody is left loading forever (with limits, so one stuck player cannot freeze a room).
+- **One button** — Play tries the platform's embedded player first, then the address as a plain video, then the server-side lookup; if an embedded player works, a small *Try another way* button offers the lookup anyway (for example for a higher resolution).
 - **Rooms without accounts** — short code or invite link; rooms live in memory and disappear 30 minutes after the last person leaves.
 - **Four ways to watch together**
   - **Platform links** through each site's official embedded player, kept in sync through its API: **YouTube**, **Vimeo**, **Twitch videos** and **Streamable**.
@@ -130,6 +133,19 @@ cd backend && uv run python -m pytest -q     # room logic and HTTP API
 cd frontend && npm run lint && npm run build  # lint + type-check + production build
 ```
 
+## Tests
+
+```bash
+cd backend  && uv run python -m pytest -q          # rooms, the watch list, the resolver, the HTTP API
+cd frontend && npm test                             # the sync engine, link parsing, page logic (vitest)
+cd frontend && npm run test:e2e                     # real browsers: needs ffmpeg and uv
+```
+
+The end-to-end suite starts the backend and the frontend itself, generates small WebM videos with ffmpeg, and drives several Chromium windows against them. It covers
+**+10 s / -10 s** (many presses, at the start and the end of a video, while paused, with the keyboard), **changing the time by hand** (code, the seek bar, the keyboard, past the end, many random seeks, joining in the middle),
+**loading** (a throttled connection must make the room wait instead of chasing it, recovery afterwards, a lost network, a missing file), the **watch list**, **sharing a file**, translations, phone layouts and the link-preview tags.
+Set `CHROMIUM_PATH` to use an installed Chromium, or run `npx playwright install chromium` once.
+
 ## Docker
 
 ```bash
@@ -145,6 +161,7 @@ Rebuild only the site with `docker compose run --rm --build frontend-builder`.
 | `BACKEND_PORT` | `8000` | Host port the backend is published on (`127.0.0.1` only) |
 | `BACKEND_DEBUG` | `True` | `False` disables `/docs`, `/redoc` and `/openapi.json` |
 | `FRONTEND_DEBUG` | `True` | `False` builds the frontend for production |
+| `SITE_URL` | *(empty)* | Public address of the site, used for link previews |
 | `FRONTEND_BUILD_OUTPUT` | `./deploy` | Host folder that receives the built site |
 | `RESOLVER_ENABLED` | `false` | Switches the yt-dlp page-link lookup on (see above); more `RESOLVER_*` settings are in `.env.example` |
 | `ALLOWED_ORIGINS` | *(empty)* | Comma-separated site origins allowed to call the API. **Set it in production**, e.g. `https://watch.example.com` |
@@ -155,6 +172,8 @@ Rebuild only the site with `docker compose run --rm --build frontend-builder`.
 | `HOST_UID` / `HOST_GID` | `1000` | Owner of the generated files |
 
 ## Deployment
+
+- Set `SITE_URL` (for example `https://watch.example.com`) in `.env` before building the frontend: link previews (Telegram, Discord, Slack, X) need an absolute address for their image and `og:url`. Without it the tags use plain paths and some previews have no picture.
 
 The frontend is a static site; the backend is one container on `127.0.0.1`. Put any reverse proxy with HTTPS in front:
 
@@ -188,7 +207,7 @@ Everything is under `/api`:
 | `GET /rooms/{code}/events` | **SSE** stream: `hello` (your id and token), a full `state` on every change, `signal` messages addressed to you, and a `ping` every 15 s |
 | `GET /config` | What this server offers (`{ "resolver": false }`) |
 | `POST /resolve` | Only when switched on: `{ "url" }` → one direct address (`404` otherwise) |
-| `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `source` to offer something; `signal` to talk to one member |
+| `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `queue_add` (with `play`), `queue_play`, `queue_next`, `queue_move`, `queue_remove`, `queue_title` for the watch list; `buffer` (`on`) while this player waits for data; `media` (the length of my copy); `source` to share a file or tab; `signal` to talk to one member |
 | `GET /time` | Server clock, used to align every client |
 | `GET /health` | Liveness |
 
@@ -203,7 +222,11 @@ The room state is one snapshot, so it is idempotent and a slow client simply get
 `media` is set when people who opened their own copy report lengths that differ by more than a second (`{ lo, hi, n }`).
 A `p2p` offer disappears when its owner leaves.
 
-A client computes where the shared playhead is *now* as `pos + (serverNow − at) / 1000` while playing, and `pos` while paused.
+The room also carries the watch list (`queue`) and whether the playhead is held (`hold`, `waiting`). `source` of kind `link` names the page address everyone plays and the list entry it came from (`item`); each browser decides by itself how to play it.
+
+**Waiting for slow players.** A player that has been out of data for about a second sends `buffer` (and repeats it every 4 s). While anybody is loading, the server freezes the position (`hold`); everybody pauses at that spot, and a report that goes quiet for 12 s, or one that lasts 30 s, stops holding the room. A stalled player also never chases the room with corrective seeks, which used to throw away what it had just buffered and leave it "seeking" forever.
+
+A client computes where the shared playhead is *now* as `pos + (serverNow − at) / 1000` while playing and not held, and `pos` while paused or held.
 The sender stamps its position with its own server-time estimate, which cancels its network delay.
 
 **One share at a time.** The room has a single `source` slot, so the newest `p2p` share replaces the previous one; every client switches to it and a sharer whose share was replaced stops sharing.

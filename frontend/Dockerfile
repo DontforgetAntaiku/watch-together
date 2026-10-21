@@ -5,6 +5,9 @@ RUN npm ci
 COPY . .
 ARG FRONTEND_DEBUG=True
 ENV FRONTEND_DEBUG=$FRONTEND_DEBUG
+# Public address of the site: link previews (Telegram, Discord ...) need absolute addresses for their image.
+ARG SITE_URL=
+ENV SITE_URL=$SITE_URL
 RUN npm run build
 
 FROM alpine:3.22
