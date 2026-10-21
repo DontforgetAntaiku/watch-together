@@ -15,6 +15,9 @@ MAX_POSITION = 60 * 60 * 24  # a day, far beyond any video
 MAX_URL = 4096  # signed CDN links are long
 MAX_CLOCK_SKEW_MS = 3000
 MAX_SDP = 30_000
+MAX_QUEUE = 50
+MAX_QUEUE_URL = 1500
+MAX_TITLE = 200
 HOLD_REFRESH_TTL = 12.0  # a loading player repeats its report every few seconds; silence for this long ends it
 HOLD_MAX = 30.0  # nobody can hold the room for longer than this in one go
 MEDIA_TOLERANCE = 1.0  # seconds: two copies of one video rarely differ by more than container rounding
@@ -73,6 +76,7 @@ class Room:
     at: int = field(default_factory=now_ms)  # server epoch ms at which `pos` was valid
     rev: int = 0
     hold: bool = False  # the playhead stands still because somebody is still loading
+    queue: list[dict[str, Any]] = field(default_factory=list)  # the shared watch list: {id, url, title, by}
     by: str = ""
     source: dict[str, Any] | None = None  # what the room offers to watch (a link, an embed or a P2P share)
     empty_since: float | None = field(default_factory=time.monotonic)
@@ -104,6 +108,7 @@ class Room:
             "n": len(self.members),
             "source": self.source,
             "media": self.media(),
+            "queue": self.queue,
             "hold": self.hold,
             "waiting": self.waiting() if self.hold else 0,
         }
@@ -169,6 +174,14 @@ def _clean_source(msg: dict[str, Any], by: str) -> dict[str, Any] | None:
     return {"kind": kind, "name": name.strip(), "dur": dur, "live": live, "by": by}
 
 
+def _clean_title(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str) or any(ord(ch) < 32 for ch in value):
+        raise RoomError("bad_value")
+    return value.strip()[:MAX_TITLE] or None
+
+
 class RoomManager:
     def __init__(self, max_rooms: int, max_members: int, empty_ttl: float, msg_per_second: float, msg_burst: int):
         self.rooms: dict[str, Room] = {}
@@ -224,6 +237,69 @@ class RoomManager:
             self._update_hold(room)
             self._broadcast(room)
 
+    # -- the shared watch list ----------------------------------------------
+    def _play_item(self, room: Room, member_id: str, item: dict[str, Any]) -> None:
+        room.source = {"kind": "link", "url": item["url"], "item": item["id"], "by": member_id}
+        room.playing = True
+        room.pos = 0.0
+        room.at = now_ms()
+        room.hold = False
+        room.rev += 1
+        room.by = member_id
+        for m in room.members.values():
+            m.dur = None  # everybody loads a new video: forget the old lengths
+
+    def _queue(self, room: Room, member: Member, kind: str, msg: dict[str, Any]) -> None:
+        def find(item_id: Any) -> int:
+            for i, it in enumerate(room.queue):
+                if it["id"] == item_id:
+                    return i
+            raise RoomError("no_item")
+
+        if kind == "queue_add":
+            url = _clean_url(msg.get("url"))
+            if url is None or len(url) > MAX_QUEUE_URL:
+                raise RoomError("bad_value")
+            title = _clean_title(msg.get("title"))
+            existing = next((it for it in room.queue if it["url"] == url), None)
+            if existing is None:
+                if len(room.queue) >= MAX_QUEUE:
+                    raise RoomError("queue_full")
+                existing = {"id": secrets.token_hex(4), "url": url, "title": title, "by": member.id}
+                room.queue.append(existing)
+            elif title and not existing.get("title"):
+                existing["title"] = title
+            if msg.get("play") is True:
+                self._play_item(room, member.id, existing)
+        elif kind == "queue_remove":
+            removed = room.queue.pop(find(msg.get("item")))
+            if room.source and room.source.get("item") == removed["id"]:
+                room.source = {k: v for k, v in room.source.items() if k != "item"}  # it keeps playing, it just is no longer listed
+        elif kind == "queue_move":
+            index = msg.get("index")
+            if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < len(room.queue):
+                raise RoomError("bad_value")
+            room.queue.insert(index, room.queue.pop(find(msg.get("item"))))
+        elif kind == "queue_play":
+            self._play_item(room, member.id, room.queue[find(msg.get("item"))])
+        elif kind == "queue_next":
+            # Everybody's player reports "ended"; only the first report counts, later ones name an item that is no longer current.
+            if not room.source or room.source.get("item") != msg.get("item"):
+                return
+            i = find(msg.get("item"))
+            if i + 1 >= len(room.queue):
+                return
+            self._play_item(room, member.id, room.queue[i + 1])
+        elif kind == "queue_title":
+            item = room.queue[find(msg.get("item"))]
+            title = _clean_title(msg.get("title"))
+            if not title or item.get("title"):
+                return  # the first one to learn the title wins
+            item["title"] = title
+        else:
+            raise RoomError("bad_value")
+        self._broadcast(room)
+
     # -- waiting for slow players ------------------------------------------
     def _update_hold(self, room: Room) -> bool:
         """Freeze the playhead while somebody loads, let it run again when they are done. True when it changed."""
@@ -263,10 +339,13 @@ class RoomManager:
             raise RoomError("slow_down")
         kind = msg.get("t")
         if kind == "source":
-            room.source = _clean_source(msg, member.id)
+            room.source = _clean_source(msg, member.id)  # a share or a plain link: not a list item any more
             room.rev += 1
             room.by = member.id
             self._broadcast(room)
+            return
+        if kind.startswith("queue_"):
+            self._queue(room, member, kind, msg)
             return
         if kind == "buffer":
             on = msg.get("on")

@@ -366,3 +366,91 @@ def test_pause_during_a_hold_ends_it_and_bad_reports_are_rejected():
     for bad in ("yes", 1, None):
         with pytest.raises(RoomError):
             m.handle(r, b.id, b.token, {"t": "buffer", "on": bad})
+
+
+# ---- the shared watch list ----------------------------------------------------------------------------------------
+
+def three_in_a_room():
+    m = make(max_members=4)
+    r = m.create()
+    return m, r, m.join(r), m.join(r)
+
+
+def add(m, r, who, url, **extra):
+    m.handle(r, who.id, who.token, {"t": "queue_add", "url": url, **extra})
+    return r.queue[-1] if r.queue and r.queue[-1]["url"] == url else next(i for i in r.queue if i["url"] == url)
+
+
+def test_add_play_and_snapshot():
+    m, r, a, b = three_in_a_room()
+    one = add(m, r, a, "https://v.test/1", title="First")
+    assert r.source is None and r.snapshot()["queue"] == [{"id": one["id"], "url": "https://v.test/1", "title": "First", "by": a.id}]
+    add(m, r, b, "https://v.test/2", play=True)
+    assert r.source["url"] == "https://v.test/2" and r.source["item"] == r.queue[1]["id"] and r.playing and r.pos == 0
+    # adding a link that is already listed does not duplicate it, it only plays it
+    again = add(m, r, a, "https://v.test/1", play=True)
+    assert len(r.queue) == 2 and again["id"] == one["id"] and r.source["item"] == one["id"]
+
+
+def test_queue_validation_and_limits():
+    m, r, a, _ = three_in_a_room()
+    for bad in ("javascript:alert(1)", "ftp://x/y", "https://a b", "x" * 1600, None, 5, "https://v.test/" + "a" * 1500):
+        with pytest.raises(RoomError):
+            m.handle(r, a.id, a.token, {"t": "queue_add", "url": bad})
+    with pytest.raises(RoomError):
+        m.handle(r, a.id, a.token, {"t": "queue_add", "url": "https://v.test/t", "title": "bad\x00title"})
+    for i in range(50):
+        m.handle(r, a.id, a.token, {"t": "queue_add", "url": f"https://v.test/{i}"})
+    with pytest.raises(RoomError) as e:
+        m.handle(r, a.id, a.token, {"t": "queue_add", "url": "https://v.test/one-too-many"})
+    assert e.value.code == "queue_full" and len(r.queue) == 50
+
+
+def test_remove_move_and_missing_items():
+    m, r, a, b = three_in_a_room()
+    ids = [add(m, r, a, f"https://v.test/{i}")["id"] for i in range(4)]
+    m.handle(r, b.id, b.token, {"t": "queue_move", "item": ids[3], "index": 0})
+    assert [i["id"] for i in r.queue] == [ids[3], ids[0], ids[1], ids[2]]
+    for bad in (-1, 4, "0", None, True):
+        with pytest.raises(RoomError):
+            m.handle(r, a.id, a.token, {"t": "queue_move", "item": ids[0], "index": bad})
+    m.handle(r, a.id, a.token, {"t": "queue_play", "item": ids[1]})
+    m.handle(r, a.id, a.token, {"t": "queue_remove", "item": ids[1]})
+    assert r.source["url"] == "https://v.test/1" and "item" not in r.source  # keeps playing, no longer listed
+    for kind in ("queue_remove", "queue_play", "queue_move", "queue_title"):
+        with pytest.raises(RoomError) as e:
+            m.handle(r, a.id, a.token, {"t": kind, "item": "nope", "index": 0, "title": "x"})
+        assert e.value.code == "no_item"
+
+
+def test_next_advances_once_even_if_everybody_reports_the_end():
+    m, r, a, b = three_in_a_room()
+    first, second, third = (add(m, r, a, f"https://v.test/{i}") for i in range(3))
+    m.handle(r, a.id, a.token, {"t": "queue_play", "item": first["id"]})
+    rev = r.rev
+    m.handle(r, a.id, a.token, {"t": "queue_next", "item": first["id"]})
+    m.handle(r, b.id, b.token, {"t": "queue_next", "item": first["id"]})  # the second report is stale
+    assert r.source["item"] == second["id"] and r.rev == rev + 1
+    m.handle(r, b.id, b.token, {"t": "queue_next", "item": second["id"]})
+    m.handle(r, a.id, a.token, {"t": "queue_next", "item": third["id"]})  # last one: nothing follows
+    assert r.source["item"] == third["id"]
+
+
+def test_a_new_video_forgets_old_lengths_and_titles_are_set_once():
+    m, r, a, b = three_in_a_room()
+    one = add(m, r, a, "https://v.test/1", play=True)
+    m.handle(r, a.id, a.token, {"t": "media", "dur": 100.0})
+    m.handle(r, b.id, b.token, {"t": "media", "dur": 300.0})
+    assert r.snapshot()["media"]
+    two = add(m, r, a, "https://v.test/2", play=True)
+    assert r.snapshot()["media"] is None and all(x.dur is None for x in r.members.values())
+    m.handle(r, a.id, a.token, {"t": "queue_title", "item": one["id"], "title": "  Nice film  "})
+    m.handle(r, b.id, b.token, {"t": "queue_title", "item": one["id"], "title": "Other"})
+    assert one["title"] == "Nice film" and two["title"] is None
+
+
+def test_a_plain_share_replaces_the_current_item_but_keeps_the_list():
+    m, r, a, _ = three_in_a_room()
+    one = add(m, r, a, "https://v.test/1", play=True)
+    m.handle(r, a.id, a.token, {"t": "source", "kind": "p2p", "name": "film.mkv", "dur": 90})
+    assert r.source["kind"] == "p2p" and r.queue == [one]

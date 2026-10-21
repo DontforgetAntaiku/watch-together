@@ -8,6 +8,7 @@ from main import create_app
 def app(monkeypatch):
     monkeypatch.setenv("BACKEND_DEBUG", "False")
     monkeypatch.setenv("CREATE_PER_MINUTE", "3")
+    monkeypatch.setenv("MSG_BURST", "500")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://watch.example")
     return create_app()
 
@@ -70,3 +71,21 @@ async def test_source_and_signal_over_http(client, app):
     assert (await client.post(url, json={**me, "t": "signal", "to": b.id, "sig": "offer", "sdp": "x" * 31_000})).status_code == 422
     assert (await client.post(url, json={**me, "t": "source", "kind": "p2p", "name": "film.mkv", "dur": 90.5})).status_code == 204
     assert room.source["by"] == a.id
+
+
+async def test_watch_list_over_http(client, app):
+    code = (await client.post("/api/rooms")).json()["code"]
+    room = app.state.rooms.get(code)
+    a = app.state.rooms.join(room)
+    url = f"/api/rooms/{code}/msg"
+    me = {"member": a.id, "token": a.token}
+    ok = await client.post(url, json={**me, "t": "queue_add", "url": "https://v.test/one", "title": "One", "play": True})
+    assert ok.status_code == 204
+    assert [i["title"] for i in room.queue] == ["One"] and room.source["item"] == room.queue[0]["id"]
+    assert (await client.post(url, json={**me, "t": "queue_add", "url": "javascript:alert(1)"})).status_code == 422
+    assert (await client.post(url, json={**me, "t": "queue_play", "item": "nope"})).status_code == 404
+    assert (await client.post(url, json={**me, "t": "queue_move", "item": room.queue[0]["id"], "index": 9})).status_code == 422
+    assert (await client.post(url, json={**me, "t": "queue_add", "url": "https://v.test/x", "extra": 1})).status_code == 422
+    for i in range(49):
+        assert (await client.post(url, json={**me, "t": "queue_add", "url": f"https://v.test/{i}"})).status_code == 204
+    assert (await client.post(url, json={**me, "t": "queue_add", "url": "https://v.test/last"})).status_code == 409

@@ -14,7 +14,7 @@ from app.settings import Settings
 
 router = APIRouter()
 
-STATUS = {"no_target": 404, "no_room": 404, "full": 409, "busy": 503, "no_member": 403, "slow_down": 429, "bad_value": 422}
+STATUS = {"no_item": 404, "queue_full": 409, "no_target": 404, "no_room": 404, "full": 409, "busy": 503, "no_member": 403, "slow_down": 429, "bad_value": 422}
 KEEPALIVE_SECONDS = 15
 
 
@@ -37,6 +37,10 @@ class Message(BaseModel):
     dur: float | None = None
     live: bool | None = None
     on: bool | None = None
+    item: str | None = Field(default=None, max_length=16)
+    title: str | None = Field(default=None, max_length=300)
+    index: int | None = None
+    play: bool | None = None
     to: str | None = Field(default=None, max_length=32)
     sig: str | None = Field(default=None, max_length=16)
     sdp: str | None = Field(default=None, max_length=30_000)
