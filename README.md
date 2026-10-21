@@ -9,7 +9,7 @@ and the server only passes tiny play, pause and seek messages.
 
 Free · Open source · No account · No install · Installable app (PWA) · English and Russian · Mobile friendly
 
-<img src="docs/room-light.png" alt="Watch Together — a room, light theme" width="780">
+<img src="docs/room-desktop-light.png" alt="Watch Together — a room, light theme" width="780">
 
 </div>
 
@@ -29,13 +29,13 @@ forwards changes, and relays the few messages two browsers need to find each oth
 A single small VPS can host thousands of rooms.
 
 <div align="center">
-<img src="docs/home-dark.png" alt="Home page, dark theme" width="520">
+<img src="docs/home-desktop-dark.png" alt="Home page, dark theme" width="520">
 &nbsp;
-<img src="docs/room-mobile-dark.png" alt="A room on a phone: the pinned player, the link field and the tab bar" width="210">
+<img src="docs/room-phone-dark.png" alt="A room on a phone: the pinned player, the link field and the tab bar" width="210">
 &nbsp;
-<img src="docs/home-mobile-light.png" alt="Home on a phone, light theme" width="210">
+<img src="docs/home-phone-light.png" alt="Home on a phone, light theme" width="210">
 &nbsp;
-<img src="docs/room-mobile-list-light.png" alt="The watch list on a phone, with the floating tab bar" width="210">
+<img src="docs/room-phone-list-light.png" alt="The watch list on a phone, with the floating tab bar" width="210">
 </div>
 
 ## Features
