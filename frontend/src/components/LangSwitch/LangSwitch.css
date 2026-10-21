@@ -1,0 +1,11 @@
+@reference "../../index.css";
+
+.lang {
+  @apply inline-flex rounded-full border border-line bg-surface p-0.5;
+}
+.lang__btn {
+  @apply min-h-10 min-w-11 cursor-pointer rounded-full border-0 bg-transparent px-3 text-sm font-semibold text-muted;
+}
+.lang__btn[aria-pressed='true'] {
+  @apply bg-accent text-accent-ink;
+}

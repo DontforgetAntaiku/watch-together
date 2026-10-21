@@ -81,3 +81,19 @@
 .source__link {
   @apply cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-accent-text underline;
 }
+
+.source__sub {
+  @apply mb-0 mt-5 text-sm font-bold uppercase tracking-widest text-muted;
+}
+.source__share {
+  @apply mt-2;
+}
+.source__live {
+  @apply mb-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
+}
+.source__live p {
+  @apply m-0;
+}
+.source__error {
+  @apply mb-0 mt-4 rounded-xl bg-danger px-4 py-3 text-sm text-white;
+}

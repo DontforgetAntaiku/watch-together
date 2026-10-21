@@ -4,9 +4,6 @@
   @apply relative overflow-hidden rounded-2xl border border-line bg-black;
   aspect-ratio: 16 / 9;
 }
-.player__video {
-  @apply block h-full w-full bg-black object-contain;
-}
 .player__empty {
   @apply absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center text-sm text-white/70;
   pointer-events: none;
@@ -14,26 +11,9 @@
 .player__empty-title {
   @apply text-xl font-semibold text-white;
 }
-.player__badge {
-  @apply absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-xs text-white;
-  pointer-events: none;
+.stream-failed {
+  @apply absolute inset-x-3 bottom-3 z-20 flex flex-col items-start gap-3 rounded-xl bg-danger px-4 py-3 text-sm text-white;
 }
-.player__overlay {
-  @apply absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 bg-black/70 px-6 text-center text-sm text-white/80;
-}
-.player__overlay-btn {
-  @apply rounded-full bg-accent px-6 py-3 text-base font-semibold text-accent-ink;
-}
-.player__error {
-  @apply absolute inset-x-3 top-3 rounded-xl bg-danger px-4 py-3 text-sm text-white;
-}
-.player__sync {
-  @apply absolute right-3 top-3 m-0 rounded-full bg-black/70 px-3 py-1 text-xs text-white;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.player:hover .player__sync,
-.player__sync[data-ok='false'] {
-  opacity: 1;
+.stream-failed p {
+  @apply m-0;
 }

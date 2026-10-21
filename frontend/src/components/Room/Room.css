@@ -8,7 +8,7 @@
   @apply flex items-center justify-between gap-3 py-1;
 }
 .room__status {
-  @apply m-0 rounded-full bg-surface px-3 py-1 text-sm text-muted;
+  @apply m-0 mr-auto rounded-full bg-surface px-3 py-1 text-sm text-muted;
 }
 .room__status[data-state='live']::before {
   content: '';
@@ -16,6 +16,23 @@
 }
 .room__status[data-state='reconnecting'] {
   @apply text-ink;
+}
+.room__status {
+  min-width: 0;
+}
+/* Narrow phones: logo and language on the first line, the status below, so long Russian text never overflows. */
+@media (max-width: 499px) {
+  .room__bar {
+    @apply flex-wrap;
+  }
+  .room__status {
+    order: 3;
+    flex-basis: 100%;
+    margin-right: 0;
+  }
+  .room__bar .lang {
+    margin-left: auto;
+  }
 }
 .room__main {
   @apply flex flex-col gap-4;

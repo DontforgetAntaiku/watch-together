@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import { go } from '../../lib/router'
 
 export function Logo() {
+  const { t } = useTranslation()
   return (
     <a
       href="/"
@@ -14,7 +16,7 @@ export function Logo() {
         <rect width="64" height="64" rx="16" fill="var(--accent)" />
         <path d="M24 18v28l23-14z" fill="var(--accent-ink)" />
       </svg>
-      Watch Together
+      {t('brand')}
     </a>
   )
 }

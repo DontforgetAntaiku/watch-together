@@ -1,0 +1,133 @@
+@reference "../../index.css";
+
+.controls {
+  @apply pointer-events-none absolute inset-0 flex flex-col justify-between text-white;
+  transition: opacity 0.2s;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.75), transparent 38%), linear-gradient(to bottom, rgb(0 0 0 / 0.35), transparent 22%);
+}
+.controls[data-visible='false'] {
+  @apply opacity-0;
+}
+.controls[data-visible='false'] * {
+  pointer-events: none !important;
+}
+.controls button,
+.controls input {
+  @apply pointer-events-auto;
+}
+.controls__center {
+  @apply flex flex-1 items-center justify-center gap-8;
+}
+.controls__big,
+.controls__skip {
+  @apply flex cursor-pointer items-center justify-center rounded-full border-0 text-white;
+  background: rgb(0 0 0 / 0.5);
+}
+.controls__big {
+  @apply h-16 w-16;
+}
+.controls__big svg {
+  @apply h-9 w-9;
+}
+.controls__skip {
+  @apply relative h-12 w-12;
+}
+.controls__skip svg {
+  @apply h-7 w-7;
+}
+.controls__skip span {
+  @apply absolute text-[0.55rem] font-bold;
+  top: 55%;
+  transform: translateY(-50%);
+}
+.controls__bar {
+  @apply px-3 pb-1;
+}
+.controls__row {
+  @apply flex items-center gap-1;
+}
+.controls__btn {
+  @apply flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-white;
+}
+.controls__btn:hover {
+  background: rgb(255 255 255 / 0.15);
+}
+.controls svg {
+  @apply h-6 w-6;
+  flex: none;
+}
+.controls__time {
+  @apply px-1 text-sm tabular-nums;
+  white-space: nowrap;
+}
+.controls__live {
+  @apply rounded bg-danger px-2 py-0.5 text-xs tracking-widest;
+}
+.controls__spacer {
+  @apply flex-1;
+}
+.controls__volume {
+  @apply flex items-center;
+}
+.controls__vol {
+  width: 5.5rem;
+}
+@media (pointer: coarse) {
+  .controls__volume .controls__vol {
+    display: none;
+  }
+}
+@media (max-width: 420px) {
+  .controls__center {
+    @apply gap-5;
+  }
+  .controls__big {
+    @apply h-14 w-14;
+  }
+}
+
+/* Range inputs: filled part = played, lighter part = buffered. */
+.controls input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  @apply m-0 h-8 w-full cursor-pointer bg-transparent;
+}
+.controls input[type='range']:disabled {
+  cursor: default;
+}
+.controls input[type='range']::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--accent) var(--played), rgb(255 255 255 / 0.55) var(--played) var(--buffered), rgb(255 255 255 / 0.25) var(--buffered));
+}
+.controls input[type='range']::-moz-range-track {
+  height: 5px;
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--accent) var(--played), rgb(255 255 255 / 0.55) var(--played) var(--buffered), rgb(255 255 255 / 0.25) var(--buffered));
+}
+.controls input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  border: 0;
+  background: #fff;
+}
+.controls input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 0;
+  background: #fff;
+}
+@media (pointer: coarse) {
+  .controls input[type='range']::-webkit-slider-runnable-track {
+    height: 6px;
+  }
+  .controls input[type='range']::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -7px;
+  }
+}

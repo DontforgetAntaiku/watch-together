@@ -1,0 +1,30 @@
+@reference "../../index.css";
+
+.embed {
+  @apply absolute inset-0 bg-black;
+}
+.embed__host,
+.embed__host iframe {
+  @apply h-full w-full border-0;
+}
+.embed__host > div {
+  @apply h-full w-full;
+}
+.embed__loading {
+  @apply absolute inset-0 flex items-center justify-center text-sm text-white/70;
+  pointer-events: none;
+}
+.embed__overlay {
+  @apply absolute inset-0 z-10 flex cursor-pointer flex-col items-center justify-center gap-3 border-0 px-6 text-center text-sm text-white/80;
+  background: rgb(0 0 0 / 0.7);
+}
+.embed__btn {
+  @apply rounded-full bg-accent px-6 py-3 text-base font-semibold text-accent-ink;
+}
+.embed__error {
+  @apply absolute inset-x-3 top-3 z-10 rounded-xl bg-danger px-4 py-3 text-sm text-white;
+}
+.embed__sync {
+  @apply pointer-events-none absolute left-3 top-3 m-0 rounded-full px-3 py-1 text-xs text-white;
+  background: rgb(0 0 0 / 0.7);
+}

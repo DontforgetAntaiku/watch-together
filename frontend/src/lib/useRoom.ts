@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, errorText, postMessage, roomInfo } from './api'
-import type { ClientMessage, RoomState } from './api'
+import type { ClientMessage, RoomState, Signal } from './api'
 import { ServerClock } from './clock'
 import { debug } from './debug'
+import i18n from '../i18n'
 
 export type Connection = 'connecting' | 'live' | 'reconnecting' | 'closed'
 
@@ -11,6 +12,7 @@ export function useRoom(code: string) {
   const [state, setState] = useState<RoomState | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const me = useRef({ id: '', token: '' })
+  const listeners = useRef(new Set<(signal: Signal) => void>())
   const [clock] = useState(() => new ServerClock())
 
   useEffect(() => {
@@ -25,6 +27,8 @@ export function useRoom(code: string) {
         debug('joined as', msg.me)
       } else if (msg.t === 'state') {
         setState(msg as RoomState)
+      } else if (msg.t === 'signal') {
+        listeners.current.forEach((fn) => fn(msg as Signal))
       }
     }
     source.onerror = () => {
@@ -33,7 +37,7 @@ export function useRoom(code: string) {
         // The browser gave up: the server answered with an error status.
         setConnection('closed')
         roomInfo(code).then(
-          () => setProblem('Could not join this room. It may be full.'),
+          () => setProblem(i18n.t('room.joinFailed')),
           (err) => setProblem(errorText(err)),
         )
       } else {
@@ -60,7 +64,7 @@ export function useRoom(code: string) {
         debug('send failed', err)
         if (err instanceof ApiError && err.status === 403) {
           // We were dropped from the room (e.g. a reconnect gave us a new identity).
-          setProblem('Connection was reset. Reconnecting…')
+          setProblem(i18n.t('room.reset'))
         }
       })
     },
@@ -69,5 +73,13 @@ export function useRoom(code: string) {
 
   const myId = useCallback(() => me.current.id, [])
 
-  return { connection, state, problem, send, myId, clock }
+  /** Subscribe to WebRTC signalling messages addressed to this member. Returns an unsubscribe function. */
+  const onSignal = useCallback((fn: (signal: Signal) => void) => {
+    listeners.current.add(fn)
+    return () => {
+      listeners.current.delete(fn)
+    }
+  }, [])
+
+  return { connection, state, problem, send, myId, clock, onSignal }
 }

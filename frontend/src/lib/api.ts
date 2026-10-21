@@ -1,5 +1,22 @@
+import i18n from '../i18n'
+
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const CODE_LENGTH = 6
+
+export type RoomSource =
+  | { kind: 'link'; url: string; by: string }
+  | { kind: 'yt'; id: string; by: string }
+  | { kind: 'vimeo'; id: string; hash: string | null; by: string }
+  | { kind: 'p2p'; name: string; dur: number | null; live: boolean; by: string }
+
+export type SourceInput =
+  | { kind: null }
+  | { kind: 'link'; url: string }
+  | { kind: 'yt'; id: string }
+  | { kind: 'vimeo'; id: string; hash?: string | null }
+  | { kind: 'p2p'; name: string; dur?: number | null; live?: boolean }
+
+export type Signal = { t: 'signal'; from: string; sig: 'offer' | 'answer' | 'bye'; sdp: string | null }
 
 export type RoomState = {
   t: 'state'
@@ -9,12 +26,13 @@ export type RoomState = {
   rev: number
   by: string
   n: number
-  source: string | null
+  source: RoomSource | null
 }
 
 export type ClientMessage =
   | { t: 'play' | 'pause' | 'seek'; pos: number; ts: number }
-  | { t: 'source'; url: string | null }
+  | ({ t: 'source' } & SourceInput)
+  | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye'; sdp?: string }
 
 export class ApiError extends Error {
   status: number
@@ -63,18 +81,8 @@ export function parseCode(raw: string): string | null {
 
 export function errorText(err: unknown): string {
   if (err instanceof ApiError) {
-    switch (err.message) {
-      case 'offline':
-        return 'No connection to the server. Check your network and try again.'
-      case 'no_room':
-        return 'This room does not exist (or it expired after being empty for a while).'
-      case 'full':
-        return 'This room is full.'
-      case 'busy':
-        return 'The server is busy right now. Try again in a minute.'
-      case 'slow_down':
-        return 'Too many requests. Wait a moment.'
-    }
+    const known = ['offline', 'no_room', 'full', 'busy', 'slow_down']
+    if (known.includes(err.message)) return i18n.t(`errors.${err.message}`)
   }
-  return 'Something went wrong. Try again.'
+  return i18n.t('errors.generic')
 }

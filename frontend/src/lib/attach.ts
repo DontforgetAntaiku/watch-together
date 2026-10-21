@@ -1,4 +1,5 @@
 import type Hls from 'hls.js'
+import i18n from '../i18n'
 
 export function isHls(url: string): boolean {
   try {
@@ -14,11 +15,11 @@ export function preflight(url: string): string | null {
   try {
     parsed = new URL(url)
   } catch {
-    return 'This does not look like a link. Paste the full address, starting with https://'
+    return i18n.t('errors.badLink')
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return 'Only http(s) links work.'
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return i18n.t('errors.onlyHttp')
   if (parsed.protocol === 'http:' && window.location.protocol === 'https:')
-    return 'This page is secure (https), so the browser blocks plain http links. Use an https link or open the file from disk.'
+    return i18n.t('errors.mixed')
   return null
 }
 
@@ -36,21 +37,19 @@ export async function attachSource(
     const { default: HlsLib } = await import('hls.js')
     if (isCancelled()) return () => {}
     if (!HlsLib.isSupported()) {
-      onError('This browser cannot play HLS (.m3u8) streams.')
+      onError(i18n.t('errors.noHls'))
       return () => {}
     }
     const hls: Hls = new HlsLib({ maxBufferLength: 40, enableWorker: true })
     hls.on(HlsLib.Events.ERROR, (_event, data) => {
       if (!data.fatal) return
       if (data.type === HlsLib.ErrorTypes.NETWORK_ERROR) {
-        onError(
-          'Could not load the stream. The link may have expired, or the host does not allow other websites to read it (CORS). Try a fresh link or the file on your disk.',
-        )
+        onError(i18n.t('errors.hlsNetwork'))
         hls.destroy()
       } else if (data.type === HlsLib.ErrorTypes.MEDIA_ERROR) {
         hls.recoverMediaError()
       } else {
-        onError('The stream could not be played.')
+        onError(i18n.t('errors.hlsFatal'))
         hls.destroy()
       }
     })
@@ -68,12 +67,12 @@ export async function attachSource(
 export function mediaErrorText(video: HTMLVideoElement): string {
   switch (video.error?.code) {
     case MediaError.MEDIA_ERR_NETWORK:
-      return 'The network failed while loading the video. The link may have expired.'
+      return i18n.t('errors.mediaNetwork')
     case MediaError.MEDIA_ERR_DECODE:
-      return 'Your browser could not decode this video.'
+      return i18n.t('errors.mediaDecode')
     case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-      return 'Your browser cannot play this link: it may be expired, blocked for other sites, or not a video the browser supports (try the file instead).'
+      return i18n.t('errors.mediaUnsupported')
     default:
-      return 'The video could not be loaded.'
+      return i18n.t('errors.mediaGeneric')
   }
 }
