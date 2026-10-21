@@ -14,7 +14,7 @@ from app.settings import Settings
 
 router = APIRouter()
 
-STATUS = {"no_room": 404, "full": 409, "busy": 503, "no_member": 403, "slow_down": 429, "bad_value": 422}
+STATUS = {"no_target": 404, "no_room": 404, "full": 409, "busy": 503, "no_member": 403, "slow_down": 429, "bad_value": 422}
 KEEPALIVE_SECONDS = 15
 
 
@@ -27,6 +27,15 @@ class Message(BaseModel):
     pos: float | None = None
     ts: float | None = None
     url: str | None = Field(default=None, max_length=2048)
+    kind: str | None = Field(default=None, max_length=16)
+    id: str | None = Field(default=None, max_length=32)
+    hash: str | None = Field(default=None, max_length=32)
+    name: str | None = Field(default=None, max_length=120)
+    dur: float | None = None
+    live: bool | None = None
+    to: str | None = Field(default=None, max_length=32)
+    sig: str | None = Field(default=None, max_length=16)
+    sdp: str | None = Field(default=None, max_length=30_000)
 
 
 def _manager(request: Request) -> RoomManager:

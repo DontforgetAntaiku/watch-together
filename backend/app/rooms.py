@@ -2,6 +2,7 @@
 
 import asyncio
 import math
+import re
 import secrets
 import time
 from dataclasses import dataclass, field
@@ -13,6 +14,11 @@ CODE_LENGTH = 6
 MAX_POSITION = 60 * 60 * 24  # a day, far beyond any video
 MAX_URL = 2048
 MAX_CLOCK_SKEW_MS = 3000
+MAX_SDP = 30_000
+SOURCE_KINDS = {"link", "yt", "vimeo", "p2p"}
+YT_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
+VIMEO_ID = re.compile(r"^\d{1,12}$")
+VIMEO_HASH = re.compile(r"^[a-f0-9]{6,20}$")
 
 
 class RoomError(Exception):
@@ -51,7 +57,7 @@ class Room:
     at: int = field(default_factory=now_ms)  # server epoch ms at which `pos` was valid
     rev: int = 0
     by: str = ""
-    source: str | None = None  # optional shared link suggestion
+    source: dict[str, Any] | None = None  # what the room offers to watch (a link, an embed or a P2P share)
     empty_since: float | None = field(default_factory=time.monotonic)
 
     def snapshot(self) -> dict[str, Any]:
@@ -84,6 +90,37 @@ def _clean_url(value: Any) -> str | None:
     if not value.startswith(("http://", "https://")) or any(ch.isspace() or ord(ch) < 32 for ch in value):
         raise RoomError("bad_value")
     return value
+
+
+def _clean_source(msg: dict[str, Any], by: str) -> dict[str, Any] | None:
+    kind = msg.get("kind")
+    if kind is None:
+        return None
+    if kind not in SOURCE_KINDS:
+        raise RoomError("bad_value")
+    if kind == "link":
+        url = _clean_url(msg.get("url"))
+        if url is None:
+            raise RoomError("bad_value")
+        return {"kind": kind, "url": url, "by": by}
+    if kind == "yt":
+        vid = msg.get("id")
+        if not isinstance(vid, str) or not YT_ID.match(vid):
+            raise RoomError("bad_value")
+        return {"kind": kind, "id": vid, "by": by}
+    if kind == "vimeo":
+        vid, key = msg.get("id"), msg.get("hash")
+        if not isinstance(vid, str) or not VIMEO_ID.match(vid):
+            raise RoomError("bad_value")
+        if key is not None and (not isinstance(key, str) or not VIMEO_HASH.match(key)):
+            raise RoomError("bad_value")
+        return {"kind": kind, "id": vid, "hash": key, "by": by}
+    name = msg.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name) > 120 or any(ord(ch) < 32 for ch in name):
+        raise RoomError("bad_value")
+    live = msg.get("live") is True
+    dur = None if live or msg.get("dur") is None else _num(msg.get("dur"), 0, MAX_POSITION)
+    return {"kind": kind, "name": name.strip(), "dur": dur, "live": live, "by": by}
 
 
 class RoomManager:
@@ -131,6 +168,9 @@ class RoomManager:
 
     def leave(self, room: Room, member: Member) -> None:
         room.members.pop(member.id, None)
+        if room.source and room.source.get("kind") == "p2p" and room.source.get("by") == member.id:
+            room.source = None
+            room.rev += 1
         if not room.members:
             room.empty_since = time.monotonic()
         else:
@@ -154,10 +194,25 @@ class RoomManager:
             raise RoomError("slow_down")
         kind = msg.get("t")
         if kind == "source":
-            room.source = _clean_url(msg.get("url"))
+            room.source = _clean_source(msg, member.id)
             room.rev += 1
             room.by = member.id
             self._broadcast(room)
+            return
+        if kind == "signal":
+            target = room.members.get(msg.get("to") or "")
+            sig, sdp = msg.get("sig"), msg.get("sdp")
+            if target is None or target.id == member.id:
+                raise RoomError("no_target")
+            if sig not in {"offer", "answer", "bye"}:
+                raise RoomError("bad_value")
+            if sig != "bye" and (not isinstance(sdp, str) or not sdp or len(sdp) > MAX_SDP):
+                raise RoomError("bad_value")
+            event = {"t": "signal", "from": member.id, "sig": sig, "sdp": sdp if sig != "bye" else None}
+            try:
+                target.queue.put_nowait(event)
+            except asyncio.QueueFull:
+                raise RoomError("slow_down") from None
             return
         if kind not in {"play", "pause", "seek"}:
             raise RoomError("bad_value")
