@@ -272,3 +272,16 @@ def test_bad_media_duration_rejected(dur):
     a = m.join(r)
     with pytest.raises(RoomError):
         m.handle(r, a.id, a.token, {"t": "media", "dur": dur})
+
+
+def test_link_source_may_carry_a_separate_audio_file():
+    m = make()
+    r = m.create()
+    a = m.join(r)
+    m.handle(r, a.id, a.token, {"t": "source", "kind": "link", "url": "https://v.test/video.mp4", "audio": "https://v.test/audio.m4a"})
+    assert r.source == {"kind": "link", "url": "https://v.test/video.mp4", "audio": "https://v.test/audio.m4a", "by": a.id}
+    m.handle(r, a.id, a.token, {"t": "source", "kind": "link", "url": "https://v.test/video.mp4"})
+    assert "audio" not in r.source
+    for bad in ("javascript:alert(1)", "https://a b", "x" * 5000):
+        with pytest.raises(RoomError):
+            m.handle(r, a.id, a.token, {"t": "source", "kind": "link", "url": "https://v.test/video.mp4", "audio": bad})

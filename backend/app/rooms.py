@@ -122,7 +122,11 @@ def _clean_source(msg: dict[str, Any], by: str) -> dict[str, Any] | None:
         url = _clean_url(msg.get("url"))
         if url is None:
             raise RoomError("bad_value")
-        return {"kind": kind, "url": url, "by": by}
+        out: dict[str, Any] = {"kind": kind, "url": url, "by": by}
+        audio = msg.get("audio")
+        if audio is not None and audio != "":
+            out["audio"] = _clean_url(audio)  # a separate sound file for a picture-only video
+        return out
     if kind == "embed":
         provider, vid = msg.get("provider"), msg.get("id")
         if not isinstance(vid, str):

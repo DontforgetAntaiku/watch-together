@@ -40,10 +40,14 @@ class Resolved:
     height: int | None
     duration: float | None
     needs_headers: bool
+    audio_url: str | None = None  # set when picture and sound are separate files: the page plays both and keeps them together
+    fallback_url: str | None = None  # a single file to fall back to when the pair does not play
 
     def public(self) -> dict[str, Any]:
         d = asdict(self)
         d["needsHeaders"] = d.pop("needs_headers")
+        d["audioUrl"] = d.pop("audio_url")
+        d["fallbackUrl"] = d.pop("fallback_url")
         return d
 
 
@@ -91,42 +95,96 @@ def _harmful_headers(headers: dict[str, Any] | None) -> bool:
     return any(k.lower() not in HARMLESS_HEADERS for k in (headers or {}))
 
 
-def pick_format(info: dict[str, Any]) -> Resolved | None:
-    """Choose ONE address a browser can play by itself: a file, or an HLS stream, with picture and sound together."""
-    title = str(info.get("title") or "")[:200]
-    duration = info.get("duration") if isinstance(info.get("duration"), (int, float)) else None
+CODEC_RANK = {"avc1": 3, "vp9": 2, "vp09": 2, "av01": 1}  # what browsers play most widely first
+PAIR_GAIN = 1.4  # a split pair must be this much taller than a single file to be worth the extra moving parts
+
+
+def _http(f: dict[str, Any]) -> bool:
+    return isinstance(f.get("url"), str) and f["url"].startswith(("http://", "https://"))
+
+
+def _single(info: dict[str, Any]) -> dict[str, Any] | None:
+    """The best single address with picture and sound together: a file, or an HLS stream."""
     candidates: list[dict[str, Any]] = []
     for f in info.get("formats") or []:
-        url, proto = f.get("url"), f.get("protocol")
-        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
-            continue
-        if proto not in {"https", "http", "m3u8", "m3u8_native"}:
+        if not _http(f) or f.get("protocol") not in {"https", "http", "m3u8", "m3u8_native"}:
             continue
         if f.get("vcodec") == "none" or f.get("acodec") == "none":
-            continue  # video-only or audio-only: a browser cannot join two addresses
-        if f.get("ext") not in {None, "mp4", "webm", "m4v", "mov", "m3u8", "mp3"} and proto in {"https", "http"}:
+            continue  # video-only or audio-only
+        if f.get("ext") not in {None, "mp4", "webm", "m4v", "mov", "m3u8", "mp3"} and f.get("protocol") in {"https", "http"}:
             continue
         candidates.append(f)
-    if not candidates and isinstance(info.get("url"), str) and info["url"].startswith(("http://", "https://")) and not info.get("requested_formats"):
+    if not candidates and _http(info) and not info.get("requested_formats"):
         candidates = [info]
     if not candidates:
         return None
 
     def rank(f: dict[str, Any]) -> tuple[int, int, int]:
         h = f.get("height") or 0
-        within = 1 if (h or 0) <= MAX_HEIGHT else 0
+        within = 1 if h <= MAX_HEIGHT else 0
         progressive = 1 if f.get("protocol") in {"https", "http"} else 0  # no CORS or hls.js needed
         return (within, min(h, MAX_HEIGHT) if within else -h, progressive)
 
-    best = max(candidates, key=rank)
-    hls = best.get("protocol") in {"m3u8", "m3u8_native"}
+    return max(candidates, key=rank)
+
+
+def _pair(info: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """The best video-only file and a matching audio-only file (plain files only: no DASH or segment lists)."""
+    videos, audios = [], []
+    for f in info.get("formats") or []:
+        if not _http(f) or f.get("protocol") not in {"https", "http"}:
+            continue
+        vcodec, acodec = f.get("vcodec") or "", f.get("acodec") or ""
+        if vcodec not in {"", "none"} and acodec == "none" and f.get("ext") in {"mp4", "webm", "m4v"} and isinstance(f.get("height"), int):
+            videos.append(f)
+        elif acodec not in {"", "none"} and vcodec == "none" and f.get("ext") in {"m4a", "mp4", "webm", "mp3", "aac", "opus"}:
+            audios.append(f)
+    if not videos or not audios:
+        return None
+
+    def vrank(f: dict[str, Any]) -> tuple[int, int, int, float]:
+        h = f["height"]
+        within = 1 if h <= MAX_HEIGHT else 0
+        return (within, min(h, MAX_HEIGHT) if within else -h, CODEC_RANK.get((f.get("vcodec") or "").split(".")[0], 0), float(f.get("tbr") or 0))
+
+    def arank(f: dict[str, Any]) -> tuple[int, int, float]:
+        drc = "drc" in str(f.get("format_id", "")).lower() or "drc" in str(f.get("format_note", "")).lower()  # compressed loudness: avoid
+        return (0 if drc else 1, 1 if f.get("ext") == "m4a" else 0, float(f.get("abr") or f.get("tbr") or 0))
+
+    return max(videos, key=vrank), max(audios, key=arank)
+
+
+def pick_format(info: dict[str, Any]) -> Resolved | None:
+    """Choose what a browser can play: one address, or (when that is clearly better) a video file plus an audio file."""
+    title = str(info.get("title") or "")[:200]
+    duration = float(info["duration"]) if isinstance(info.get("duration"), (int, float)) else None
+    single = _single(info)
+    pair = _pair(info)
+    if single is None and pair is None:
+        return None
+    single_height = (single or {}).get("height") if isinstance((single or {}).get("height"), int) else 0
+    if pair and (single is None or pair[0]["height"] >= PAIR_GAIN * max(single_height, 1)):
+        video, audio = pair
+        fallback = single["url"] if single else None
+        return Resolved(
+            title=title,
+            url=video["url"],
+            protocol="https",
+            height=video["height"],
+            duration=duration,
+            needs_headers=_harmful_headers(video.get("http_headers")) or _harmful_headers(audio.get("http_headers")),
+            audio_url=audio["url"],
+            fallback_url=fallback,
+        )
+    assert single is not None
+    hls = single.get("protocol") in {"m3u8", "m3u8_native"}
     return Resolved(
         title=title,
-        url=best["url"],
+        url=single["url"],
         protocol="hls" if hls else "https",
-        height=best.get("height") if isinstance(best.get("height"), int) else None,
-        duration=float(duration) if duration is not None else None,
-        needs_headers=_harmful_headers(best.get("http_headers")),
+        height=single.get("height") if isinstance(single.get("height"), int) else None,
+        duration=duration,
+        needs_headers=_harmful_headers(single.get("http_headers")),
     )
 
 

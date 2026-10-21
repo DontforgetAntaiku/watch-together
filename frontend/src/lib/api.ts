@@ -6,13 +6,13 @@ export const CODE_LENGTH = 6
 import type { Embed } from './embed'
 
 export type RoomSource =
-  | { kind: 'link'; url: string; by: string }
+  | { kind: 'link'; url: string; audio?: string; by: string }
   | { kind: 'embed'; provider: string; id: string; type?: string; hash?: string | null; by: string }
   | { kind: 'p2p'; name: string; dur: number | null; live: boolean; by: string }
 
 export type SourceInput =
   | { kind: null }
-  | { kind: 'link'; url: string }
+  | { kind: 'link'; url: string; audio?: string }
   | ({ kind: 'embed' } & Embed)
   | { kind: 'p2p'; name: string; dur?: number | null; live?: boolean }
 
@@ -65,7 +65,18 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type Config = { resolver: boolean }
-export type Resolved = { title: string; url: string; protocol: 'https' | 'hls'; height: number | null; duration: number | null; needsHeaders: boolean }
+export type Resolved = {
+  title: string
+  url: string
+  protocol: 'https' | 'hls'
+  height: number | null
+  duration: number | null
+  needsHeaders: boolean
+  /** Picture and sound are separate files: `url` is the picture, this is the sound. */
+  audioUrl: string | null
+  /** A single file to try when the pair does not play. */
+  fallbackUrl: string | null
+}
 
 let configPromise: Promise<Config> | null = null
 /** What this server offers (cached; a server without the extra features answers with all of them off). */

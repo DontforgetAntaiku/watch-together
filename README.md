@@ -295,11 +295,14 @@ Off by default. When the owner switches it on, a **Resolve a page link** button 
 every browser then plays it by itself. The video never goes through the server, only the lookup does.
 
 What it helps with: sites that expose a plain `.mp4` or an HLS stream that is not tied to anyone's address (tested with Streamable and Dailymotion, up to 1080p).
+
+**Separate picture and sound** (the best quality on YouTube and many other sites) is supported too: the page plays the picture in the video element, plays the sound in a hidden audio element, and keeps the two within a few hundredths of a second
+(small gaps are closed by a tiny speed change, big ones by a jump; the sound waits while the picture buffers). Volume, mute, seeking, pausing and the room's sync all work as for any other video, and offering the link to the room offers both files.
+A pair is used only when it is clearly sharper than any single file (at least 1.4 times taller); the single file stays as an automatic fallback if the pair does not load. Browser-friendly H.264 and AAC are preferred over AV1 and Opus.
 What it does not help with, and why:
 
-- **Links tied to the server's address** (YouTube and many others): your friends' browsers have other addresses, so the host refuses them.
+- **Links tied to the server's address** (YouTube and many others): your friends' browsers have other addresses, so the host refuses them. (If the server runs at home on the same network as you, those links do play for you.)
 - **Links locked to the original site** (many streaming sites): the host checks which site is asking, and no other site can ask.
-- **Separate picture and sound streams** (the best YouTube quality): a browser cannot play two addresses as one video, so such pages are reported as unsupported.
 - **Logins, private videos, sites yt-dlp has no extractor for** are reported with a clear message.
 - Links **expire**, often within hours.
 

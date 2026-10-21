@@ -85,9 +85,46 @@ def test_hls_when_there_is_no_file():
     assert got.protocol == "hls" and got.height == 1080
 
 
-def test_split_streams_are_not_playable_alone():
-    info = {"formats": [fmt(vcodec="avc1", acodec="none", url="https://a/video.mp4"), fmt(vcodec="none", acodec="mp4a", url="https://a/audio.m4a")], "requested_formats": [{}, {}], "url": "https://a/x"}
-    assert r.pick_format(info) is None
+def vfmt(h, vcodec="avc1.640028", url=None, **kw):
+    return fmt(url=url or f"https://a/v{h}.mp4", height=h, vcodec=vcodec, acodec="none", **kw)
+
+
+def afmt(url="https://a/a.m4a", **kw):
+    base = {"url": url, "protocol": "https", "ext": "m4a", "vcodec": "none", "acodec": "mp4a.40.2", "abr": 128, "format_id": "140", "http_headers": {"User-Agent": "x"}}
+    base.update(kw)
+    return base
+
+
+def test_split_streams_are_paired_when_nothing_else_exists():
+    got = r.pick_format({"title": "t", "formats": [vfmt(360), vfmt(1080), vfmt(2160), afmt(url="https://a/low.m4a", abr=48), afmt(url="https://a/hi.m4a", abr=128)]})
+    assert got.url == "https://a/v1080.mp4" and got.audio_url == "https://a/hi.m4a" and got.height == 1080 and got.fallback_url is None
+
+
+def test_pair_beats_a_much_smaller_single_file_and_keeps_it_as_fallback():
+    got = r.pick_format({"formats": [fmt(url="https://a/small.mp4", height=360), vfmt(1080), afmt()]})
+    assert got.audio_url and got.height == 1080 and got.fallback_url == "https://a/small.mp4"
+
+
+def test_single_file_wins_when_the_pair_is_only_slightly_better():
+    got = r.pick_format({"formats": [fmt(url="https://a/800.mp4", height=800), vfmt(1080), afmt()]})
+    assert got.audio_url is None and got.url == "https://a/800.mp4"
+
+
+def test_pair_prefers_widely_playable_codec_and_plain_audio():
+    got = r.pick_format({"formats": [
+        vfmt(1080, vcodec="av01.0.08M.08", url="https://a/av1.mp4"), vfmt(1080, vcodec="vp9", url="https://a/vp9.mp4", ext="webm"), vfmt(1080, url="https://a/h264.mp4"),
+        afmt(url="https://a/drc.m4a", format_id="140-drc", abr=200), afmt(url="https://a/plain.m4a", abr=128),
+    ]})
+    assert got.url == "https://a/h264.mp4" and got.audio_url == "https://a/plain.m4a"
+
+
+def test_video_only_without_any_audio_is_unusable():
+    assert r.pick_format({"formats": [vfmt(1080)]}) is None
+    assert r.pick_format({"formats": [afmt()]}) is None
+
+
+def test_pair_ignores_segment_lists_and_other_schemes():
+    assert r.pick_format({"formats": [vfmt(1080, protocol="http_dash_segments"), afmt(), vfmt(720, url="javascript:1")]}) is None
 
 
 def test_unsafe_schemes_and_dash_ignored():
@@ -151,7 +188,7 @@ async def test_resolver_caches_and_limits_waiting():
 
 async def test_unplayable_result_is_an_error():
     async def runner(url, timeout, proxy):
-        return {"formats": [fmt(vcodec="none")]}
+        return {"formats": [vfmt(1080)]}
 
     with pytest.raises(r.ResolveError) as e:
         await make(runner).resolve("https://site.test/v")
@@ -208,7 +245,7 @@ async def test_endpoint_end_to_end_with_limits(monkeypatch):
     async with c:
         assert (await c.get("/api/config")).json() == {"resolver": True}
         ok = await c.post("/api/resolve", json={"url": "https://site.test/v"})
-        assert ok.status_code == 200 and ok.json() == {"title": "Hello", "url": "https://cdn.test/a.mp4", "protocol": "https", "height": None, "duration": 9.0, "needsHeaders": False}
+        assert ok.status_code == 200 and ok.json() == {"title": "Hello", "url": "https://cdn.test/a.mp4", "protocol": "https", "height": None, "duration": 9.0, "needsHeaders": False, "audioUrl": None, "fallbackUrl": None}
         assert (await c.post("/api/resolve", json={"url": "https://site.test/bad"})).json() == {"detail": "unsupported"}
         assert (await c.post("/api/resolve", json={"url": "http://169.254.169.254/"})).status_code == 422
         assert (await c.post("/api/resolve", json={"url": "https://site.test/v", "x": 1})).status_code == 422

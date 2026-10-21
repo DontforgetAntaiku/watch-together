@@ -16,11 +16,12 @@ type Props = {
   onSignal: (fn: (s: Signal) => void) => () => void
   onVideo: (el: HTMLVideoElement | null) => void
   onShareEnded: () => void
+  onFailed: (message: string) => void
   sharingViewers: number
 }
 
 /** The 16:9 frame; the player inside depends on what is being watched. */
-export function Player({ source, state, clock, myId, send, onSignal, onVideo, onShareEnded, sharingViewers }: Props) {
+export function Player({ source, state, clock, myId, send, onSignal, onVideo, onShareEnded, onFailed, sharingViewers }: Props) {
   const { t } = useTranslation()
   const common = { state, clock, myId, send }
   return (
@@ -32,7 +33,15 @@ export function Player({ source, state, clock, myId, send, onSignal, onVideo, on
         </div>
       )}
       {(source?.kind === 'link' || source?.kind === 'file') && (
-        <VideoPlayer key={source.url} mode="media" url={source.url} onVideo={onVideo} {...common} />
+        <VideoPlayer
+          key={source.url + (source.kind === 'link' ? (source.audioUrl ?? '') : '')}
+          mode="media"
+          url={source.url}
+          audioUrl={source.kind === 'link' ? source.audioUrl : undefined}
+          onFailed={source.kind === 'link' && source.fallbackUrl ? onFailed : undefined}
+          onVideo={onVideo}
+          {...common}
+        />
       )}
       {source?.kind === 'embed' && (
         <EmbedPlayer key={JSON.stringify(source.embed)} embed={source.embed} {...common} />

@@ -42,7 +42,8 @@
     "noFrames": "No picture is leaving this device even after switching the sharing method. This phone or browser cannot share video files. Share from a computer, or send the file.",
     "switchedCapture": "No picture was going out, so the sharing method was switched automatically.",
     "differentCuts": "Your copies of the video differ in length ({{lo}} to {{hi}}), so they are probably different cuts. Everyone should open the same file or link, or picture and sound will not line up.",
-    "resolvedHeaders": "Found it, but this site expects special headers a browser cannot send, so it will probably not play. If it fails, share the tab or the file instead."
+    "resolvedHeaders": "Found it, but this site expects special headers a browser cannot send, so it will probably not play. If it fails, share the tab or the file instead.",
+    "usedFallback": "The best quality did not load, so a single lower-quality file is used instead."
   },
   "code": {
     "room": "Room",
@@ -160,7 +161,8 @@
     "refused": "The site refused this server's request.",
     "failed": "The lookup failed. Try again later or share the tab or the file.",
     "timeout": "The lookup took too long.",
-    "unavailable_tool": "The lookup tool is not installed on this server."
+    "unavailable_tool": "The lookup tool is not installed on this server.",
+    "audioFailed": "The sound could not be loaded."
   },
   "sound": {
     "title": "Add sound from a device",

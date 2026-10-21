@@ -244,8 +244,14 @@ export function Room({ code }: { code: string }) {
     setNotice(null)
     try {
       const res = await resolvePage(page)
-      replaceSource({ kind: 'link', url: res.url, label: res.title || hostLabel(res.url) })
-      if (offer) send({ t: 'source', kind: 'link', url: res.url })
+      replaceSource({
+        kind: 'link',
+        url: res.url,
+        audioUrl: res.audioUrl ?? undefined,
+        fallbackUrl: res.fallbackUrl ?? undefined,
+        label: res.title || hostLabel(res.url),
+      })
+      if (offer) send({ t: 'source', kind: 'link', url: res.url, ...(res.audioUrl ? { audio: res.audioUrl } : {}) })
       setNotice(res.needsHeaders ? t('room.resolvedHeaders') : null)
     } catch (err) {
       setNotice(errorText(err))
@@ -253,6 +259,15 @@ export function Room({ code }: { code: string }) {
       setResolving(false)
     }
   }
+
+  // The picture-plus-sound pair did not load: fall back to the single file the lookup also found, if there was one.
+  const onSourceFailed = useCallback(() => {
+    setSource((current) => {
+      if (current?.kind !== 'link' || !current.fallbackUrl) return current
+      return { kind: 'link', url: current.fallbackUrl, label: current.label }
+    })
+    setNotice(t('room.usedFallback'))
+  }, [t])
 
   const onFile = (file: File) => {
     replaceSource({ kind: 'file', url: URL.createObjectURL(file), label: file.name })
@@ -386,6 +401,7 @@ export function Room({ code }: { code: string }) {
               send={send}
               onSignal={onSignal}
               onVideo={onVideo}
+              onFailed={onSourceFailed}
               onShareEnded={() => {
                 setSource(null)
                 setNotice(t('room.shareEnded'))

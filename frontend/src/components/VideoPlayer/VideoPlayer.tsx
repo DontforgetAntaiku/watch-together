@@ -13,6 +13,10 @@ type Props = {
   /** `media`: a link or a file played here. `stream`: someone else's share arriving over WebRTC. */
   mode: 'media' | 'stream'
   url?: string
+  /** A separate sound file for a picture-only `url`: played by a hidden audio element that follows the video. */
+  audioUrl?: string
+  /** Called when the picture or sound could not be loaded (the page may then try a fallback). */
+  onFailed?: (message: string) => void
   stream?: MediaStream | null
   live?: boolean
   streamDuration?: number | null
@@ -31,10 +35,12 @@ const DOUBLE_TAP_MS = 300
 
 type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
-export function VideoPlayer({ mode, url, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
+export function VideoPlayer({ mode, url, audioUrl, onFailed, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
   const { t } = useTranslation()
   const box = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
+  const audio = useRef<HTMLAudioElement>(null)
+  const failedRef = useRef(onFailed)
   const [adapter, setAdapter] = useState<HtmlAdapter | null>(null)
   const { engine, blocked, drift, setBlocked } = useEngine(mode === 'media' ? adapter : null, state, clock, myId, send)
 
@@ -60,7 +66,13 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
 
   useEffect(() => {
     latest.current = { state, clock }
-  }, [state, clock])
+    failedRef.current = onFailed
+  }, [state, clock, onFailed])
+
+  const fail = useCallback((message: string) => {
+    setError(message)
+    failedRef.current?.(message)
+  }, [])
 
   const roomTime = useCallback(() => {
     const { state: s, clock: c } = latest.current
@@ -94,9 +106,10 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     let cleanup = () => {}
     const run = ++attachRun.current
     const problem = url.startsWith('blob:') ? null : preflight(url)
-    if (problem) {
+    const audioProblem = audioUrl && !audioUrl.startsWith('blob:') ? preflight(audioUrl) : null
+    if (problem || audioProblem) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reporting a precondition failure for the new source
-      setError(problem)
+      fail((problem ?? audioProblem) as string)
       return
     }
     setError(null)
@@ -104,7 +117,9 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     setLevels([])
     setLevel(-1)
     setHlsLevel.current = null
-    attachSource(v, url, (m) => !cancelled && setError(m), () => cancelled, (heights) => !cancelled && setLevels(heights)).then(
+    const a = audio.current
+    if (a && audioUrl) a.src = audioUrl
+    attachSource(v, url, (m) => !cancelled && fail(m), () => cancelled, (heights) => !cancelled && setLevels(heights)).then(
       ({ cleanup: c, setLevel: set }) => {
         // A newer attach has already pointed the element at the same link: undoing ours would clear theirs.
         if (!cancelled) {
@@ -116,8 +131,73 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     return () => {
       cancelled = true
       cleanup()
+      if (a) {
+        a.removeAttribute('src')
+        a.load()
+      }
     }
-  }, [mode, url, setBlocked])
+  }, [mode, url, audioUrl, setBlocked, fail])
+
+  // Picture and sound come from two addresses: the video element is the clock, the audio element follows it.
+  useEffect(() => {
+    const v = video.current
+    const a = audio.current
+    if (mode !== 'media' || !v || !a || !audioUrl) return
+    v.muted = true
+    const follow = () => {
+      if (Math.abs(a.currentTime - v.currentTime) > 0.05) a.currentTime = v.currentTime
+    }
+    const start = () => {
+      follow()
+      a.playbackRate = v.playbackRate
+      a.play().catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'NotAllowedError') setBlocked(true)
+      })
+    }
+    const onPlay = () => start()
+    const onPause = () => a.pause()
+    const onSeek = () => follow()
+    const onRate = () => {
+      a.playbackRate = v.playbackRate
+    }
+    const onStall = () => a.pause() // the picture is buffering: do not let the sound run ahead
+    const onResume = () => {
+      if (!v.paused) start()
+    }
+    v.addEventListener('play', onPlay)
+    v.addEventListener('pause', onPause)
+    v.addEventListener('ended', onPause)
+    v.addEventListener('seeking', onSeek)
+    v.addEventListener('seeked', onSeek)
+    v.addEventListener('ratechange', onRate)
+    v.addEventListener('waiting', onStall)
+    v.addEventListener('playing', onResume)
+    const onAudioError = () => fail(t('errors.audioFailed'))
+    a.addEventListener('error', onAudioError)
+    // Keep them within a few hundredths of a second: small gaps by a tiny speed change, big gaps by a jump.
+    const timer = window.setInterval(() => {
+      if (v.paused || v.seeking || v.readyState < 3) return
+      if (a.paused) return void (a.readyState >= 2 && start())
+      const gap = a.currentTime - v.currentTime
+      if (Math.abs(gap) > 0.25) a.currentTime = v.currentTime + 0.05
+      else if (Math.abs(gap) > 0.04) a.playbackRate = v.playbackRate * (gap > 0 ? 0.97 : 1.03)
+      else a.playbackRate = v.playbackRate
+    }, 400)
+    if (!v.paused) start()
+    return () => {
+      window.clearInterval(timer)
+      v.removeEventListener('play', onPlay)
+      v.removeEventListener('pause', onPause)
+      v.removeEventListener('ended', onPause)
+      v.removeEventListener('seeking', onSeek)
+      v.removeEventListener('seeked', onSeek)
+      v.removeEventListener('ratechange', onRate)
+      v.removeEventListener('waiting', onStall)
+      v.removeEventListener('playing', onResume)
+      a.removeEventListener('error', onAudioError)
+      a.pause()
+    }
+  }, [mode, audioUrl, setBlocked, fail, t])
 
   // Stream mode: show the incoming stream.
   const [streamBlocked, setStreamBlocked] = useState(false)
@@ -212,16 +292,21 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     else v?.webkitEnterFullscreen?.()
   }, [])
 
-  const setVol = (v: number) => {
-    const el = video.current
-    if (!el) return
-    el.volume = v
-    el.muted = v === 0
-  }
-  const toggleMute = () => {
-    const el = video.current
+  // With a separate sound file the audio element is the one that makes noise (the video stays muted).
+  const volumeEl = useCallback(() => (audioUrl ? audio.current : video.current), [audioUrl])
+  const setVol = useCallback(
+    (x: number) => {
+      const el = volumeEl()
+      if (!el) return
+      el.volume = x
+      el.muted = x === 0
+    },
+    [volumeEl],
+  )
+  const toggleMute = useCallback(() => {
+    const el = volumeEl()
     if (el) el.muted = !el.muted
-  }
+  }, [volumeEl])
 
   // Keyboard shortcuts while this player is on screen.
   useEffect(() => {
@@ -250,10 +335,10 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
           skip(10)
           break
         case 'ArrowUp':
-          if (v) setVol(Math.min(1, v.volume + 0.1))
+          if (volumeEl()) setVol(Math.min(1, (volumeEl()?.volume ?? 1) + 0.1))
           break
         case 'ArrowDown':
-          if (v) setVol(Math.max(0, v.volume - 0.1))
+          if (volumeEl()) setVol(Math.max(0, (volumeEl()?.volume ?? 0) - 0.1))
           break
         case 'm':
           toggleMute()
@@ -273,7 +358,7 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [mode, toggle, skip, seekTo, toggleFullscreen, roomTime, poke])
+  }, [mode, toggle, skip, seekTo, toggleFullscreen, roomTime, poke, volumeEl, setVol, toggleMute])
 
   const onSurfacePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -356,6 +441,7 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
           for (let i = 0; i < b.length; i++) if (b.start(i) <= t + 0.5 && b.end(i) >= t) setBufferedEnd(b.end(i))
         }}
         onVolumeChange={(e) => {
+          if (audioUrl) return // the sound's own element reports the volume
           setVolume(e.currentTarget.volume)
           setMuted(e.currentTarget.muted)
         }}
@@ -366,8 +452,18 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
         onWaiting={() => setBuffering(true)}
         onPlaying={() => setBuffering(false)}
         onCanPlay={() => setBuffering(false)}
-        onError={() => mode === 'media' && url && !error && setError(mediaErrorText(video.current!))}
+        onError={() => mode === 'media' && url && !error && fail(mediaErrorText(video.current!))}
       />
+      {audioUrl && (
+        <audio
+          ref={audio}
+          preload="auto"
+          onVolumeChange={(e) => {
+            setVolume(e.currentTarget.volume)
+            setMuted(e.currentTarget.muted)
+          }}
+        />
+      )}
       <div className="vp__tap" onPointerUp={onSurfacePointerUp} />
 
       {hint && (
@@ -419,7 +515,10 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
             setStreamBlocked(false)
             setBlocked(false)
             if (mode === 'stream') void video.current?.play()
-            else engine?.apply(true)
+            else {
+              engine?.apply(true)
+              void audio.current?.play().catch(() => {})
+            }
           }}
         >
           <span className="vp__overlay-btn">{t('player.join')}</span>

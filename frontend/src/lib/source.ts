@@ -5,7 +5,7 @@ import type { Embed } from './embed'
 
 /** What this person is watching right now. */
 export type Source =
-  | { kind: 'link'; url: string; label: string }
+  | { kind: 'link'; url: string; audioUrl?: string; fallbackUrl?: string; label: string }
   | { kind: 'file'; url: string; label: string }
   | { kind: 'embed'; embed: Embed; label: string }
   | { kind: 'watch'; sharer: string; dur: number | null; live: boolean; label: string }
@@ -42,7 +42,7 @@ export function offerLabel(s: RoomSource): string {
 export function fromOffer(s: RoomSource): Source | null {
   switch (s.kind) {
     case 'link':
-      return { kind: 'link', url: s.url, label: hostLabel(s.url) }
+      return { kind: 'link', url: s.url, audioUrl: s.audio, label: hostLabel(s.url) }
     case 'embed': {
       const e = embedFromOffer(s)
       return e ? { kind: 'embed', embed: e, label: embedLabel(e) } : null
