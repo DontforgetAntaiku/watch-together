@@ -16,7 +16,7 @@ export type SourceInput =
   | { kind: 'vimeo'; id: string; hash?: string | null }
   | { kind: 'p2p'; name: string; dur?: number | null; live?: boolean }
 
-export type Signal = { t: 'signal'; from: string; sig: 'offer' | 'answer' | 'bye'; sdp: string | null }
+export type Signal = { t: 'signal'; from: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp: string | null }
 
 export type RoomState = {
   t: 'state'
@@ -32,7 +32,7 @@ export type RoomState = {
 export type ClientMessage =
   | { t: 'play' | 'pause' | 'seek'; pos: number; ts: number }
   | ({ t: 'source' } & SourceInput)
-  | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye'; sdp?: string }
+  | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp?: string }
 
 export class ApiError extends Error {
   status: number

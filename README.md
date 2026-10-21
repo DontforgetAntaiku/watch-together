@@ -47,6 +47,9 @@ A single small VPS can host thousands of rooms.
 - **Tight sync** — all clocks are aligned to the server; tiny drift is smoothed with a ±5 % speed nudge, big drift is fixed with a seek. Typical error is well under 100 ms on a good connection.
 - **A real player** — one big play button, ±10 s buttons, seek bar with buffered range, volume, full screen, auto-hiding controls,
   double-tap to skip on touch screens, and keyboard shortcuts (below).
+- **Your own quality** — a gear menu in the player: every viewer of a shared file or tab picks 1080p / 720p / 480p / 360p / Auto for their own stream, and HLS links offer their quality ladder.
+- **One share at a time** — when someone starts sharing a file or a tab, everyone (including a previous sharer) switches to it automatically. No confirmation, no flip-flopping.
+- **Self-healing connection** — the server pings every 15 s; a silent connection (phone asleep, network change) is replaced automatically, so no page refresh is needed.
 - **Late join** — a person who joins while the video plays lands on the right second.
 - **Offer a link** — optionally offer your link to the room; others get a one-click "Use it" button.
 - **Phone-first layout** — pinned player while you scroll, big touch targets, safe-area aware, landscape mode that fits the screen,
@@ -176,7 +179,7 @@ Everything is under `/api`:
 |---|---|
 | `POST /rooms` | Create a room → `{ "code": "K7M2QX" }` (rate limited per IP) |
 | `GET /rooms/{code}` | Does it exist, how many people are in it |
-| `GET /rooms/{code}/events` | **SSE** stream: `hello` (your id and token), a full `state` on every change, and `signal` messages addressed to you |
+| `GET /rooms/{code}/events` | **SSE** stream: `hello` (your id and token), a full `state` on every change, `signal` messages addressed to you, and a `ping` every 15 s |
 | `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `source` to offer something; `signal` to talk to one member |
 | `GET /time` | Server clock, used to align every client |
 | `GET /health` | Liveness |
@@ -194,13 +197,15 @@ A `p2p` offer disappears when its owner leaves.
 A client computes where the shared playhead is *now* as `pos + (serverNow − at) / 1000` while playing, and `pos` while paused.
 The sender stamps its position with its own server-time estimate, which cancels its network delay.
 
+**One share at a time.** The room has a single `source` slot, so the newest `p2p` share replaces the previous one; every client switches to it and a sharer whose share was replaced stops sharing.
+
 **Staying in sync without echo loops.** A player only announces a local action when it *differs* from what the room already
 believes, so a player that merely obeyed the room never speaks. Drift is checked once a second: gap above 1.2 s → seek,
 above 0.15 s → playback speed 0.95 or 1.05, otherwise 1.0. The same engine drives HTML video, YouTube and Vimeo through a small adapter.
 
 **Peer-to-peer sharing.** The sharer captures its playing file (`captureStream`) or tab (`getDisplayMedia`). A viewer sends a WebRTC offer to the
 sharer through the room's `signal` messages, the sharer answers, and the video then flows directly between the two browsers
-(up to 8 viewers per sharer, capped at 4 Mbit/s each). Viewers' play, pause and seek go to the room; the sharer's player obeys, so the stream follows.
+(up to 8 viewers per sharer, capped at 4 Mbit/s each; a viewer's quality choice is a `signal` of kind `quality` that scales only that viewer's video). Viewers' play, pause and seek go to the room; the sharer's player obeys, so the stream follows.
 The server only relays the offer and answer (size limited, to one named member).
 
 **Abuse limits.** Strict message validation (no unknown fields, finite bounded numbers, `http(s)` links only, fixed shapes for sources),
@@ -238,9 +243,9 @@ docs/                        screenshots used in this README
 
 ## Limits and ideas
 
-- **Sharing a file** needs a browser that can capture a playing `<video>` (Chrome, Edge, Firefox on a computer; not Safari or phones). Viewers can be on any device.
+- **Sharing a file** needs a browser that can capture a playing `<video>` (Chrome, Edge, Firefox; not Safari). Android phones are supported through a canvas fallback, but it is the least tested path; a computer is more reliable. Viewers can be on any device. Phone recordings (HEVC/H.265) may not play on every computer.
   Quality depends on the sharer's upload speed. Strict networks or VPNs may block a direct connection; add a TURN server (below) if that happens to you.
-- **Sharing a tab** works in Chrome and Edge (with tab sound) and Firefox (video only), on computers. Play and pause in the shared tab itself; viewers just watch.
+- **Sharing a tab** works in Chrome and Edge (with tab sound) and Firefox (video only: Firefox cannot share sound, and on Linux/Wayland it never can), on computers. Play and pause in the shared tab itself; viewers just watch.
 - Playback speed is not synced (the speed is used internally to nudge small drifts).
 - If someone's video buffers for a long time, the others keep playing; that person catches up with a seek.
 - VK Video and other embed APIs are not supported yet. No chat, no subtitles sync. Pull requests are welcome.

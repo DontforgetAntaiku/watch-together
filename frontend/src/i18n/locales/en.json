@@ -37,7 +37,8 @@
     "tabName": "Tab or window",
     "joinFailed": "Could not join this room. It may be full.",
     "reset": "Connection was reset. Reconnecting…",
-    "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Friends will see the picture without sound. For sound use Chrome or Edge, or share the video file instead."
+    "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Friends will see the picture without sound. For sound use Chrome or Edge, or share the video file instead.",
+    "takenOver": "Someone else started sharing, so your share was stopped. Now watching theirs."
   },
   "code": {
     "room": "Room",
@@ -102,7 +103,8 @@
     "loading": "Loading player…",
     "connecting": "Connecting to the sharer…",
     "failed": "Could not connect directly to the sharer. Strict networks or VPNs can block this. Ask them to send the file instead, or try again.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "qualityAuto": "Auto"
   },
   "controls": {
     "play": "Play",
@@ -116,7 +118,8 @@
     "volume": "Volume",
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",
-    "live": "LIVE"
+    "live": "LIVE",
+    "quality": "Quality"
   },
   "errors": {
     "offline": "No connection to the server. Check your network and try again.",
@@ -139,6 +142,7 @@
     "ytPlay": "YouTube would not play this video (private, removed or embedding disabled).",
     "vimeoPlay": "Vimeo would not play this video (private, removed or embedding disabled).",
     "noCapture": "This browser cannot share a playing file. Use Chrome, Edge or Firefox on a computer.",
-    "noPicture": "The video has no picture to share yet. Press play once and try again."
+    "noPicture": "The video has no picture to share yet. Press play once and try again.",
+    "noPictureViewer": "Connected, but no picture is arriving. The sharer's device may not be able to share this file (phones often cannot). Ask them to share from a computer, or send the file."
   }
 }

@@ -98,7 +98,8 @@ export function Room({ code }: { code: string }) {
         if (signal.sig === 'offer' && signal.sdp) {
           if (sharingRef.current) void ensureSharer().handleOffer(signal.from, signal.sdp)
           else sendRef.current({ t: 'signal', to: signal.from, sig: 'bye' })
-        } else if (signal.sig === 'bye') sharer.current?.close(signal.from)
+        } else if (signal.sig === 'quality' && signal.sdp) void sharer.current?.setQuality(signal.from, signal.sdp)
+        else if (signal.sig === 'bye') sharer.current?.close(signal.from)
       }),
     [onSignal, ensureSharer],
   )
@@ -122,6 +123,25 @@ export function Room({ code }: { code: string }) {
       setNotice(t('room.shareEnded'))
     }
   }, [state, source, t])
+
+  // One share at a time: when someone starts sharing, everyone (including a previous sharer) switches to it.
+  const lastOffer = useRef('')
+  useEffect(() => {
+    const offered = state?.source
+    if (!offered || offered.kind !== 'p2p') {
+      if (!offered) lastOffer.current = ''
+      return
+    }
+    if (offered.by === myId()) return
+    const key = `${offered.by}:${offered.name}:${offered.live}`
+    if (lastOffer.current === key) return
+    lastOffer.current = key
+    const wasSharing = !!sharingRef.current
+    if (wasSharing) stopSharing(false)
+    replaceSource(fromOffer(offered))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tell the person why their screen changed
+    if (wasSharing) setNotice(t('room.takenOver'))
+  }, [state?.source, myId, stopSharing, replaceSource, t])
 
   const onVideo = useCallback((el: HTMLVideoElement | null) => {
     video.current = el

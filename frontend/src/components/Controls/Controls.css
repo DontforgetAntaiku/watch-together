@@ -131,3 +131,46 @@
     margin-top: -7px;
   }
 }
+
+/* Mouse users get a clean picture while it plays: the big buttons only show when paused. */
+@media (hover: hover) and (pointer: fine) {
+  .controls[data-playing='true'] .controls__center {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .controls[data-playing='true'] .controls__center * {
+    pointer-events: none !important;
+  }
+}
+.controls__menu {
+  @apply pointer-events-auto absolute right-3 flex min-w-40 flex-col overflow-hidden rounded-xl p-1 text-sm;
+  bottom: 4.25rem;
+  background: rgb(15 20 40 / 0.94);
+  border: 1px solid rgb(255 255 255 / 0.15);
+}
+.controls__menu-title {
+  @apply m-0 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white/60;
+}
+.controls__menu-item {
+  @apply flex min-h-11 cursor-pointer items-center justify-between rounded-lg border-0 bg-transparent px-3 text-left text-white;
+}
+.controls__menu-item:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+.controls__menu-item[aria-checked='true'] {
+  @apply font-bold text-accent;
+}
+.controls__menu-item[aria-checked='true']::after {
+  content: '✓';
+}
+.controls__skip span {
+  top: 52%;
+  font-size: 0.6rem;
+}
+
+/* The ±10 s buttons live in the bottom bar for mouse users (the big centre ones show for touch and while paused). */
+@media (pointer: coarse) {
+  .controls__row-skip {
+    display: none;
+  }
+}

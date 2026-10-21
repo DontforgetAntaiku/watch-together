@@ -23,6 +23,9 @@ function gathered(pc: RTCPeerConnection, maxMs = 3500): Promise<void> {
 const MAX_VIEWERS = 8
 const MAX_BITRATE = 4_000_000
 
+/** Bitrate that suits a picture of this height. */
+const bitrateFor = (height: number) => Math.min(6_000_000, Math.max(300_000, Math.round(height * height * 4.5)))
+
 /** The person who shares a file or a tab: one direct connection per viewer. */
 export class Sharer {
   private peers = new Map<string, RTCPeerConnection>()
@@ -69,6 +72,28 @@ export class Sharer {
     }
   }
 
+  /** A viewer asked for a lower resolution (or `auto`): scale only that viewer's video. */
+  async setQuality(id: string, value: string) {
+    const pc = this.peers.get(id)
+    if (!pc) return
+    for (const sender of pc.getSenders()) {
+      if (sender.track?.kind !== 'video') continue
+      const params = sender.getParameters()
+      if (!params.encodings?.length) params.encodings = [{}]
+      const enc = params.encodings[0]
+      if (value === 'auto') {
+        delete enc.scaleResolutionDownBy
+        enc.maxBitrate = MAX_BITRATE
+      } else {
+        const target = Number(value)
+        const source = sender.track.getSettings().height || target
+        enc.scaleResolutionDownBy = Math.max(1, source / target)
+        enc.maxBitrate = bitrateFor(Math.min(target, source))
+      }
+      await sender.setParameters(params).catch(() => {})
+    }
+  }
+
   private connected() {
     return [...this.peers.values()].filter((pc) => pc.connectionState === 'connected').length
   }
@@ -96,9 +121,10 @@ export function watchShare(
   subscribe: (fn: (s: Signal) => void) => () => void,
   onStream: (stream: MediaStream) => void,
   onState: (state: ViewerState) => void,
-): () => void {
+): { stop: () => void; setQuality: (value: string) => void } {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
   let stopped = false
+  let desired = 'auto'
   pc.addTransceiver('video', { direction: 'recvonly' })
   pc.addTransceiver('audio', { direction: 'recvonly' })
   pc.ontrack = (e) => {
@@ -107,7 +133,10 @@ export function watchShare(
   pc.onconnectionstatechange = () => {
     debug('viewer', pc.connectionState)
     if (stopped) return
-    if (pc.connectionState === 'connected') onState('connected')
+    if (pc.connectionState === 'connected') {
+      onState('connected')
+      if (desired !== 'auto') send({ t: 'signal', to: sharer, sig: 'quality', sdp: desired })
+    }
     else if (pc.connectionState === 'failed') onState('failed')
     else if (pc.connectionState === 'disconnected') {
       window.setTimeout(() => !stopped && pc.connectionState === 'disconnected' && onState('failed'), 5000)
@@ -133,12 +162,18 @@ export function watchShare(
       if (!stopped) onState('failed')
     }
   })()
-  return () => {
-    stopped = true
-    window.clearTimeout(timeout)
-    unsubscribe()
-    send({ t: 'signal', to: sharer, sig: 'bye' })
-    pc.close()
+  return {
+    stop: () => {
+      stopped = true
+      window.clearTimeout(timeout)
+      unsubscribe()
+      send({ t: 'signal', to: sharer, sig: 'bye' })
+      pc.close()
+    },
+    setQuality: (value: string) => {
+      desired = value
+      if (pc.connectionState === 'connected') send({ t: 'signal', to: sharer, sig: 'quality', sdp: value })
+    },
   }
 }
 

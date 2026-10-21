@@ -32,13 +32,14 @@ export async function attachSource(
   url: string,
   onError: (message: string) => void,
   isCancelled: () => boolean,
-): Promise<() => void> {
+  onLevels?: (heights: number[]) => void,
+): Promise<{ cleanup: () => void; setLevel?: (index: number) => void }> {
   if (isHls(url) && !video.canPlayType('application/vnd.apple.mpegurl')) {
     const { default: HlsLib } = await import('hls.js')
-    if (isCancelled()) return () => {}
+    if (isCancelled()) return { cleanup: () => {} }
     if (!HlsLib.isSupported()) {
       onError(i18n.t('errors.noHls'))
-      return () => {}
+      return { cleanup: () => {} }
     }
     const hls: Hls = new HlsLib({ maxBufferLength: 40, enableWorker: true })
     hls.on(HlsLib.Events.ERROR, (_event, data) => {
@@ -53,14 +54,22 @@ export async function attachSource(
         hls.destroy()
       }
     })
+    hls.on(HlsLib.Events.MANIFEST_PARSED, () => onLevels?.(hls.levels.map((l) => l.height)))
     hls.loadSource(url)
     hls.attachMedia(video)
-    return () => hls.destroy()
+    return {
+      cleanup: () => hls.destroy(),
+      setLevel: (index: number) => {
+        hls.currentLevel = index
+      },
+    }
   }
   video.src = url
-  return () => {
-    video.removeAttribute('src')
-    video.load()
+  return {
+    cleanup: () => {
+      video.removeAttribute('src')
+      video.load()
+    },
   }
 }
 

@@ -14,12 +14,17 @@ export function useRoom(code: string) {
   const me = useRef({ id: '', token: '' })
   const listeners = useRef(new Set<(signal: Signal) => void>())
   const [clock] = useState(() => new ServerClock())
+  const [epoch, setEpoch] = useState(0)
+  const lastSeen = useRef(0)
 
   useEffect(() => {
     let closed = false
+    lastSeen.current = Date.now()
     const source = new EventSource(`/api/rooms/${code}/events`)
     source.onmessage = (event) => {
+      lastSeen.current = Date.now()
       const msg = JSON.parse(event.data)
+      if (msg.t === 'ping') return
       if (msg.t === 'hello') {
         me.current = { id: msg.me, token: msg.token }
         setConnection('live')
@@ -49,12 +54,31 @@ export function useRoom(code: string) {
       clock.relax()
       void clock.sample(3)
     }, 30_000)
+
+    // Phones freeze or drop a stream without telling the page. The server pings every 15 s, so silence means a dead
+    // connection: open a new one (and do the same when the tab wakes up or the network returns).
+    const reconnect = () => {
+      if (closed) return
+      setConnection('reconnecting')
+      setEpoch((n) => n + 1)
+    }
+    const watchdog = window.setInterval(() => {
+      if (Date.now() - lastSeen.current > 40_000) reconnect()
+    }, 5000)
+    const wake = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastSeen.current > 20_000) reconnect()
+    }
+    window.addEventListener('online', wake)
+    document.addEventListener('visibilitychange', wake)
     return () => {
       closed = true
       source.close()
       window.clearInterval(timer)
+      window.clearInterval(watchdog)
+      window.removeEventListener('online', wake)
+      document.removeEventListener('visibilitychange', wake)
     }
-  }, [code, clock])
+  }, [code, clock, epoch])
 
   const send = useCallback(
     (msg: ClientMessage) => {

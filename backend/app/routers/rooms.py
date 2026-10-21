@@ -133,7 +133,8 @@ async def events(code: str, request: Request) -> StreamingResponse:
                 try:
                     event = await asyncio.wait_for(member.queue.get(), timeout=KEEPALIVE_SECONDS)
                 except TimeoutError:
-                    yield b": keepalive\n\n"
+                    # A data event (not a comment) so the client can tell the stream is alive.
+                    yield _sse({"t": "ping"})
                     continue
                 yield _sse(event)
         finally:

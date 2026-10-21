@@ -130,6 +130,7 @@ export class VimeoAdapter implements MediaAdapter {
   private isPaused = true
   private isEnded = false
   loaded = false
+  quirkPlayAfterSeek = true
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
   onSeeked: () => void = () => {}

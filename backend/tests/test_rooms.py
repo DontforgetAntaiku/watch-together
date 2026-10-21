@@ -204,3 +204,18 @@ def test_slow_consumer_keeps_latest_state():
     while not b.queue.empty():
         last = b.queue.get_nowait()
     assert last["pos"] == 199
+
+
+def test_quality_signal_relayed_and_validated():
+    m = make()
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    for member in (a, b):
+        while not member.queue.empty():
+            member.queue.get_nowait()
+    for value in ("auto", "720", "1080"):
+        m.handle(r, b.id, b.token, {"t": "signal", "to": a.id, "sig": "quality", "sdp": value})
+    assert [a.queue.get_nowait()["sdp"] for _ in range(3)] == ["auto", "720", "1080"]
+    for bad in ("0", "12", "99999", "720p", "", None, "auto; drop"):
+        with pytest.raises(RoomError):
+            m.handle(r, b.id, b.token, {"t": "signal", "to": a.id, "sig": "quality", "sdp": bad})

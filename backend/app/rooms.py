@@ -16,6 +16,7 @@ MAX_URL = 2048
 MAX_CLOCK_SKEW_MS = 3000
 MAX_SDP = 30_000
 SOURCE_KINDS = {"link", "yt", "vimeo", "p2p"}
+QUALITY = re.compile(r"^(auto|[1-9]\d{2,3})$")
 YT_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 VIMEO_ID = re.compile(r"^\d{1,12}$")
 VIMEO_HASH = re.compile(r"^[a-f0-9]{6,20}$")
@@ -204,9 +205,11 @@ class RoomManager:
             sig, sdp = msg.get("sig"), msg.get("sdp")
             if target is None or target.id == member.id:
                 raise RoomError("no_target")
-            if sig not in {"offer", "answer", "bye"}:
+            if sig not in {"offer", "answer", "bye", "quality"}:
                 raise RoomError("bad_value")
-            if sig != "bye" and (not isinstance(sdp, str) or not sdp or len(sdp) > MAX_SDP):
+            if sig in {"offer", "answer"} and (not isinstance(sdp, str) or not sdp or len(sdp) > MAX_SDP):
+                raise RoomError("bad_value")
+            if sig == "quality" and (not isinstance(sdp, str) or not QUALITY.match(sdp)):
                 raise RoomError("bad_value")
             event = {"t": "signal", "from": member.id, "sig": sig, "sdp": sdp if sig != "bye" else None}
             try:

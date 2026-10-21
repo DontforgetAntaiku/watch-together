@@ -22,6 +22,8 @@ type Props = {
   myId: () => string
   send: (msg: ClientMessage) => void
   onVideo?: (el: HTMLVideoElement | null) => void
+  /** Stream mode: quality choices answered by the sharer. */
+  streamQuality?: { value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }
 }
 
 const HIDE_AFTER_MS = 2800
@@ -29,7 +31,7 @@ const DOUBLE_TAP_MS = 300
 
 type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
-export function VideoPlayer({ mode, url, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo }: Props) {
+export function VideoPlayer({ mode, url, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
   const { t } = useTranslation()
   const box = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
@@ -47,6 +49,9 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
   const [scrub, setScrub] = useState<number | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [active, setActive] = useState(true)
+  const [levels, setLevels] = useState<number[]>([])
+  const [level, setLevel] = useState(-1)
+  const setHlsLevel = useRef<((index: number) => void) | null>(null)
   const [hint, setHint] = useState<{ side: 'left' | 'right'; n: number } | null>(null)
   const hideTimer = useRef<number | undefined>(undefined)
   const tap = useRef<{ at: number; timer?: number }>({ at: 0 })
@@ -87,11 +92,18 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     }
     setError(null)
     setBlocked(false)
-    attachSource(v, url, (m) => !cancelled && setError(m), () => cancelled).then((c) => {
-      // A newer attach has already pointed the element at the same link: undoing ours would clear theirs.
-      if (!cancelled) cleanup = c
-      else if (attachRun.current === run) c()
-    })
+    setLevels([])
+    setLevel(-1)
+    setHlsLevel.current = null
+    attachSource(v, url, (m) => !cancelled && setError(m), () => cancelled, (heights) => !cancelled && setLevels(heights)).then(
+      ({ cleanup: c, setLevel: set }) => {
+        // A newer attach has already pointed the element at the same link: undoing ours would clear theirs.
+        if (!cancelled) {
+          cleanup = c
+          setHlsLevel.current = set ?? null
+        } else if (attachRun.current === run) c()
+      },
+    )
     return () => {
       cancelled = true
       cleanup()
@@ -109,6 +121,15 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
       v.srcObject = null
     }
   }, [mode, stream])
+
+  // A connection can be "up" while no picture ever arrives (some phones cannot share a file).
+  useEffect(() => {
+    if (mode !== 'stream' || !stream) return
+    const timer = window.setTimeout(() => {
+      if (video.current && video.current.videoWidth === 0) setError(t('errors.noPictureViewer'))
+    }, 10_000)
+    return () => window.clearTimeout(timer)
+  }, [mode, stream, t])
 
   // Stream mode follows the room clock for its progress bar.
   useEffect(() => {
@@ -274,6 +295,23 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
     }
   }
 
+  // Quality: the sharer's choices for a stream, or the HLS ladder for a link.
+  const hlsOptions = (() => {
+    if (levels.length < 2) return []
+    const picks = levels.map((h, i) => ({ value: String(i), label: `${h}p`, h })).sort((a, b) => b.h - a.h)
+    return [{ value: 'auto', label: t('player.qualityAuto') }, ...picks.map(({ value, label }) => ({ value, label }))]
+  })()
+  const qualityOptions = mode === 'stream' ? (streamQuality?.options ?? []) : hlsOptions
+  const qualityValue = mode === 'stream' ? (streamQuality?.value ?? 'auto') : level < 0 ? 'auto' : String(level)
+  const onQuality = (value: string) => {
+    if (mode === 'stream') streamQuality?.onChange(value)
+    else {
+      const index = value === 'auto' ? -1 : Number(value)
+      setLevel(index)
+      setHlsLevel.current?.(index)
+    }
+  }
+
   const controlsVisible = !playing || active || scrub !== null
   const showBlocked = (blocked || streamBlocked) && !error
   const status = notice ?? null
@@ -290,6 +328,7 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
         ref={video}
         className="vp__video"
         playsInline
+        disablePictureInPicture
         preload="auto"
         onPlay={() => {
           setPaused(false)
@@ -311,7 +350,10 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
           setVolume(e.currentTarget.volume)
           setMuted(e.currentTarget.muted)
         }}
-        onLoadedMetadata={() => mode === 'media' && engine?.apply(true)}
+        onLoadedMetadata={() => {
+          if (mode === 'media') engine?.apply(true)
+          else setError(null)
+        }}
         onWaiting={() => setBuffering(true)}
         onPlaying={() => setBuffering(false)}
         onCanPlay={() => setBuffering(false)}
@@ -355,6 +397,9 @@ export function VideoPlayer({ mode, url, stream, live = false, streamDuration, n
         onMute={toggleMute}
         onVolume={setVol}
         onFullscreen={toggleFullscreen}
+        qualityOptions={qualityOptions}
+        quality={qualityValue}
+        onQuality={onQuality}
       />
 
       {showBlocked && (
