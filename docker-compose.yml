@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    environment:
+      BACKEND_DEBUG: ${BACKEND_DEBUG:-True}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      MAX_ROOMS: ${MAX_ROOMS:-5000}
+      MAX_MEMBERS: ${MAX_MEMBERS:-30}
+      EMPTY_ROOM_TTL: ${EMPTY_ROOM_TTL:-1800}
+      CREATE_PER_MINUTE: ${CREATE_PER_MINUTE:-20}
+
+  frontend-builder:
+    build:
+      context: ./frontend
+      args:
+        FRONTEND_DEBUG: ${FRONTEND_DEBUG:-True}
+    environment:
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+    volumes:
+      - ${FRONTEND_BUILD_OUTPUT:-./deploy}:/out
+    profiles: ["build"]
