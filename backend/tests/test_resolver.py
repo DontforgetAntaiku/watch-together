@@ -245,7 +245,7 @@ async def test_endpoint_end_to_end_with_limits(monkeypatch):
     async with c:
         assert (await c.get("/api/config")).json() == {"resolver": True}
         ok = await c.post("/api/resolve", json={"url": "https://site.test/v"})
-        assert ok.status_code == 200 and ok.json() == {"title": "Hello", "url": "https://cdn.test/a.mp4", "protocol": "https", "height": None, "duration": 9.0, "needsHeaders": False, "audioUrl": None, "fallbackUrl": None}
+        assert ok.status_code == 200 and ok.json() == {"title": "Hello", "url": "https://cdn.test/a.mp4", "protocol": "https", "height": None, "duration": 9.0, "needsHeaders": False, "audioUrl": None, "fallbackUrl": None, "options": []}
         assert (await c.post("/api/resolve", json={"url": "https://site.test/bad"})).json() == {"detail": "unsupported"}
         assert (await c.post("/api/resolve", json={"url": "http://169.254.169.254/"})).status_code == 422
         assert (await c.post("/api/resolve", json={"url": "https://site.test/v", "x": 1})).status_code == 422
@@ -272,3 +272,33 @@ async def test_enabled_but_tool_missing_stays_off_and_says_so(monkeypatch, caplo
         assert (await c.get("/api/config")).json() == {"resolver": False}
         assert (await c.post("/api/resolve", json={"url": "https://site.test/v"})).status_code == 404
     assert "yt-dlp was not found" in caplog.text and "--build" in caplog.text
+
+
+def test_options_one_per_resolution_tallest_first():
+    info = {"formats": [
+        vfmt(2160, vcodec="vp9", ext="webm", url="https://a/2160.webm"), vfmt(1080, url="https://a/1080.mp4"), vfmt(1080, vcodec="av01.0.08M.08", url="https://a/1080av1.mp4"),
+        vfmt(720, url="https://a/720.mp4"), vfmt(360, url="https://a/360v.mp4"),
+        fmt(url="https://a/360.mp4", height=360),  # a single combined file beats a pair at the same height
+        fmt(url="https://a/144.m3u8", protocol="m3u8_native", height=144, ext="mp4"),
+        afmt(url="https://a/low.m4a", abr=48), afmt(url="https://a/hi.m4a", abr=128), afmt(url="https://a/drc.m4a", format_id="140-drc", abr=300),
+    ]}
+    got = r.pick_format(info)
+    assert [o["height"] for o in got.options] == [2160, 1080, 720, 360, 144]
+    by = {o["height"]: o for o in got.options}
+    assert by[1080]["url"] == "https://a/1080.mp4" and by[1080]["audio_url"] == "https://a/hi.m4a"  # H.264 over AV1, plain audio over DRC
+    assert by[360]["url"] == "https://a/360.mp4" and by[360]["audio_url"] is None
+    assert by[144]["protocol"] == "hls"
+    assert got.height == 1080 and got.url == by[1080]["url"]  # the default stops at 1080 even though 2160 is offered
+
+
+def test_no_menu_when_there_is_only_one_choice():
+    assert r.pick_format({"formats": [fmt(height=720)]}).options == []
+    assert r.pick_format({"title": "t", "url": "https://a/x.mp4"}).options == []
+
+
+def test_options_public_shape():
+    got = r.pick_format({"formats": [fmt(url="https://a/720.mp4", height=720), fmt(url="https://a/360.mp4", height=360)]}).public()
+    assert got["options"] == [
+        {"height": 720, "url": "https://a/720.mp4", "audioUrl": None, "protocol": "https"},
+        {"height": 360, "url": "https://a/360.mp4", "audioUrl": None, "protocol": "https"},
+    ]

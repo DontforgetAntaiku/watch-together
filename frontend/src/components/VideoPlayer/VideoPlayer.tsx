@@ -15,6 +15,10 @@ type Props = {
   url?: string
   /** A separate sound file for a picture-only `url`: played by a hidden audio element that follows the video. */
   audioUrl?: string
+  /** Resolutions to choose from (a page-link lookup found several); picking one is the page's business. */
+  choices?: { value: string; label: string }[]
+  choice?: string
+  onChoice?: (value: string) => void
   /** Called when the picture or sound could not be loaded (the page may then try a fallback). */
   onFailed?: (message: string) => void
   stream?: MediaStream | null
@@ -35,7 +39,7 @@ const DOUBLE_TAP_MS = 300
 
 type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
-export function VideoPlayer({ mode, url, audioUrl, onFailed, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
+export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, onFailed, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
   const { t } = useTranslation()
   const box = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
@@ -395,10 +399,11 @@ export function VideoPlayer({ mode, url, audioUrl, onFailed, stream, live = fals
     const picks = levels.map((h, i) => ({ value: String(i), label: `${h}p`, h })).sort((a, b) => b.h - a.h)
     return [{ value: 'auto', label: t('player.qualityAuto') }, ...picks.map(({ value, label }) => ({ value, label }))]
   })()
-  const qualityOptions = mode === 'stream' ? (streamQuality?.options ?? []) : hlsOptions
-  const qualityValue = mode === 'stream' ? (streamQuality?.value ?? 'auto') : level < 0 ? 'auto' : String(level)
+  const qualityOptions = mode === 'stream' ? (streamQuality?.options ?? []) : choices?.length ? choices : hlsOptions
+  const qualityValue = mode === 'stream' ? (streamQuality?.value ?? 'auto') : choices?.length ? (choice ?? '') : level < 0 ? 'auto' : String(level)
   const onQuality = (value: string) => {
     if (mode === 'stream') streamQuality?.onChange(value)
+    else if (choices?.length) onChoice?.(value)
     else {
       const index = value === 'auto' ? -1 : Number(value)
       setLevel(index)

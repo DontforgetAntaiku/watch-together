@@ -249,6 +249,9 @@ export function Room({ code }: { code: string }) {
         url: res.url,
         audioUrl: res.audioUrl ?? undefined,
         fallbackUrl: res.fallbackUrl ?? undefined,
+        options: res.options?.length ? res.options.map((o) => ({ height: o.height, url: o.url, audioUrl: o.audioUrl ?? undefined })) : undefined,
+        quality: res.options?.length ? (res.height ?? undefined) : undefined,
+        group: page,
         label: res.title || hostLabel(res.url),
       })
       if (offer) send({ t: 'source', kind: 'link', url: res.url, ...(res.audioUrl ? { audio: res.audioUrl } : {}) })
@@ -260,11 +263,26 @@ export function Room({ code }: { code: string }) {
     }
   }
 
-  // The picture-plus-sound pair did not load: fall back to the single file the lookup also found, if there was one.
+  // A quality was chosen in the menu: reload the player's source (it re-syncs to the room's position by itself).
+  const onPickQuality = useCallback((height: number) => {
+    setSource((current) => {
+      if (current?.kind !== 'link') return current
+      const option = current.options?.find((o) => o.height === height)
+      return option ? { ...current, url: option.url, audioUrl: option.audioUrl, quality: option.height } : current
+    })
+  }, [])
+
+  // Something did not load: step down to the next lower resolution, else to the single file the lookup also found.
   const onSourceFailed = useCallback(() => {
     setSource((current) => {
-      if (current?.kind !== 'link' || !current.fallbackUrl) return current
-      return { kind: 'link', url: current.fallbackUrl, label: current.label }
+      if (current?.kind !== 'link') return current
+      const options = current.options ?? []
+      const next = options[options.findIndex((o) => o.url === current.url) + 1]
+      if (options.length && options.some((o) => o.url === current.url) && next) {
+        return { ...current, url: next.url, audioUrl: next.audioUrl, quality: next.height }
+      }
+      if (current.fallbackUrl) return { kind: 'link', url: current.fallbackUrl, label: current.label }
+      return current
     })
     setNotice(t('room.usedFallback'))
   }, [t])
@@ -402,6 +420,7 @@ export function Room({ code }: { code: string }) {
               onSignal={onSignal}
               onVideo={onVideo}
               onFailed={onSourceFailed}
+              onPickQuality={onPickQuality}
               onShareEnded={() => {
                 setSource(null)
                 setNotice(t('room.shareEnded'))

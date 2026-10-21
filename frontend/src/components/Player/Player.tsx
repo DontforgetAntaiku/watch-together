@@ -17,11 +17,12 @@ type Props = {
   onVideo: (el: HTMLVideoElement | null) => void
   onShareEnded: () => void
   onFailed: (message: string) => void
+  onPickQuality: (height: number) => void
   sharingViewers: number
 }
 
 /** The 16:9 frame; the player inside depends on what is being watched. */
-export function Player({ source, state, clock, myId, send, onSignal, onVideo, onShareEnded, onFailed, sharingViewers }: Props) {
+export function Player({ source, state, clock, myId, send, onSignal, onVideo, onShareEnded, onFailed, onPickQuality, sharingViewers }: Props) {
   const { t } = useTranslation()
   const common = { state, clock, myId, send }
   return (
@@ -34,11 +35,14 @@ export function Player({ source, state, clock, myId, send, onSignal, onVideo, on
       )}
       {(source?.kind === 'link' || source?.kind === 'file') && (
         <VideoPlayer
-          key={source.url + (source.kind === 'link' ? (source.audioUrl ?? '') : '')}
+          key={source.kind === 'link' && source.group ? source.group : source.url + (source.kind === 'link' ? (source.audioUrl ?? '') : '')}
           mode="media"
           url={source.url}
           audioUrl={source.kind === 'link' ? source.audioUrl : undefined}
-          onFailed={source.kind === 'link' && source.fallbackUrl ? onFailed : undefined}
+          onFailed={source.kind === 'link' && (source.fallbackUrl || source.options?.length) ? onFailed : undefined}
+          choices={source.kind === 'link' && source.options?.length ? source.options.map((o) => ({ value: String(o.height), label: `${o.height}p` })) : undefined}
+          choice={source.kind === 'link' && source.quality ? String(source.quality) : undefined}
+          onChoice={(value) => onPickQuality(Number(value))}
           onVideo={onVideo}
           {...common}
         />

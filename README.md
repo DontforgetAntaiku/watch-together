@@ -302,6 +302,8 @@ What it helps with: sites that expose a plain `.mp4` or an HLS stream that is no
 
 **Separate picture and sound** (the best quality on YouTube and many other sites) is supported too: the page plays the picture in the video element, plays the sound in a hidden audio element, and keeps the two within a few hundredths of a second
 (small gaps are closed by a tiny speed change, big ones by a jump; the sound waits while the picture buffers). Volume, mute, seeking, pausing and the room's sync all work as for any other video, and offering the link to the room offers both files.
+**Choosing the resolution:** the lookup returns every resolution the site offers, and the player's gear menu lists them (for example 2160p … 144p on YouTube). The default is the best one up to 1080p; picking another reloads the source and continues at the room's current position.
+If a resolution does not load, the player steps down to the next lower one by itself and says so. Offering the link to the room offers the resolution you are on.
 A pair is used only when it is clearly sharper than any single file (at least 1.4 times taller); the single file stays as an automatic fallback if the pair does not load. Browser-friendly H.264 and AAC are preferred over AV1 and Opus.
 What it does not help with, and why:
 

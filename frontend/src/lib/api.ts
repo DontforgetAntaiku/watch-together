@@ -65,6 +65,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type Config = { resolver: boolean }
+export type ResolvedOption = { height: number; url: string; audioUrl: string | null; protocol: 'https' | 'hls' }
 export type Resolved = {
   title: string
   url: string
@@ -76,6 +77,8 @@ export type Resolved = {
   audioUrl: string | null
   /** A single file to try when the pair does not play. */
   fallbackUrl: string | null
+  /** Every resolution on offer, tallest first; empty when there is nothing to choose. */
+  options: ResolvedOption[]
 }
 
 let configPromise: Promise<Config> | null = null

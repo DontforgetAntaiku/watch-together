@@ -43,7 +43,7 @@
     "switchedCapture": "No picture was going out, so the sharing method was switched automatically.",
     "differentCuts": "Your copies of the video differ in length ({{lo}} to {{hi}}), so they are probably different cuts. Everyone should open the same file or link, or picture and sound will not line up.",
     "resolvedHeaders": "Found it, but this site expects special headers a browser cannot send, so it will probably not play. If it fails, share the tab or the file instead.",
-    "usedFallback": "The best quality did not load, so a single lower-quality file is used instead."
+    "usedFallback": "That quality did not load, so a lower one is used instead."
   },
   "code": {
     "room": "Room",

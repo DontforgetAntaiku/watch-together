@@ -5,7 +5,18 @@ import type { Embed } from './embed'
 
 /** What this person is watching right now. */
 export type Source =
-  | { kind: 'link'; url: string; audioUrl?: string; fallbackUrl?: string; label: string }
+  | {
+      kind: 'link'
+      url: string
+      audioUrl?: string
+      fallbackUrl?: string
+      /** From the page-link lookup: the resolutions to choose from, and the chosen height. */
+      options?: { height: number; url: string; audioUrl?: string }[]
+      quality?: number
+      /** Stays the same while the quality changes, so the player is kept and only reloads its source. */
+      group?: string
+      label: string
+    }
   | { kind: 'file'; url: string; label: string }
   | { kind: 'embed'; embed: Embed; label: string }
   | { kind: 'watch'; sharer: string; dur: number | null; live: boolean; label: string }

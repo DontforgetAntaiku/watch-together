@@ -14,7 +14,7 @@ import shutil
 import socket
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -42,12 +42,14 @@ class Resolved:
     needs_headers: bool
     audio_url: str | None = None  # set when picture and sound are separate files: the page plays both and keeps them together
     fallback_url: str | None = None  # a single file to fall back to when the pair does not play
+    options: list[dict[str, Any]] = field(default_factory=list)  # every resolution on offer, tallest first (for a quality menu)
 
     def public(self) -> dict[str, Any]:
         d = asdict(self)
         d["needsHeaders"] = d.pop("needs_headers")
         d["audioUrl"] = d.pop("audio_url")
         d["fallbackUrl"] = d.pop("fallback_url")
+        d["options"] = [{"height": o["height"], "url": o["url"], "audioUrl": o["audio_url"], "protocol": o["protocol"]} for o in self.options]
         return d
 
 
@@ -154,6 +156,52 @@ def _pair(info: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
     return max(videos, key=vrank), max(audios, key=arank)
 
 
+MAX_OPTIONS = 8
+MENU_HEIGHT = 2160  # the menu may offer more than the default (which stops at MAX_HEIGHT)
+
+
+def build_options(info: dict[str, Any]) -> list[dict[str, Any]]:
+    """One playable choice per resolution, tallest first: a single progressive file, else a video+audio pair, else HLS."""
+    formats = info.get("formats") or []
+    singles: dict[int, dict[str, Any]] = {}
+    hls: dict[int, dict[str, Any]] = {}
+    videos: dict[int, dict[str, Any]] = {}
+    audios: list[dict[str, Any]] = []
+    for f in formats:
+        if not _http(f):
+            continue
+        proto, h = f.get("protocol"), f.get("height")
+        vcodec, acodec = f.get("vcodec") or "", f.get("acodec") or ""
+        if vcodec == "none" and acodec not in {"", "none"} and proto in {"https", "http"} and f.get("ext") in {"m4a", "mp4", "webm", "mp3", "aac", "opus"}:
+            audios.append(f)
+            continue
+        if not isinstance(h, int) or h <= 0 or h > MENU_HEIGHT:
+            continue
+        if acodec == "none" and vcodec not in {"", "none"} and proto in {"https", "http"} and f.get("ext") in {"mp4", "webm", "m4v"}:
+            best = videos.get(h)
+            key = (CODEC_RANK.get(vcodec.split(".")[0], 0), float(f.get("tbr") or 0))
+            if best is None or key > (CODEC_RANK.get((best.get("vcodec") or "").split(".")[0], 0), float(best.get("tbr") or 0)):
+                videos[h] = f
+        elif vcodec != "none" and acodec != "none":
+            if proto in {"https", "http"} and f.get("ext") in {None, "mp4", "webm", "m4v", "mov"}:
+                if h not in singles or float(f.get("tbr") or 0) > float(singles[h].get("tbr") or 0):
+                    singles[h] = f
+            elif proto in {"m3u8", "m3u8_native"} and (h not in hls or float(f.get("tbr") or 0) > float(hls[h].get("tbr") or 0)):
+                hls[h] = f
+    audio = None
+    if audios:
+        audio = max(audios, key=lambda f: (0 if "drc" in str(f.get("format_id", "")).lower() else 1, 1 if f.get("ext") == "m4a" else 0, float(f.get("abr") or f.get("tbr") or 0)))
+    out: list[dict[str, Any]] = []
+    for h in sorted(set(singles) | set(hls) | (set(videos) if audio else set()), reverse=True):
+        if h in singles:
+            out.append({"height": h, "url": singles[h]["url"], "audio_url": None, "protocol": "https"})
+        elif h in videos and audio:
+            out.append({"height": h, "url": videos[h]["url"], "audio_url": audio["url"], "protocol": "https"})
+        else:
+            out.append({"height": h, "url": hls[h]["url"], "audio_url": None, "protocol": "hls"})
+    return out[:MAX_OPTIONS]
+
+
 def pick_format(info: dict[str, Any]) -> Resolved | None:
     """Choose what a browser can play: one address, or (when that is clearly better) a video file plus an audio file."""
     title = str(info.get("title") or "")[:200]
@@ -162,6 +210,9 @@ def pick_format(info: dict[str, Any]) -> Resolved | None:
     pair = _pair(info)
     if single is None and pair is None:
         return None
+    options = build_options(info)
+    if len(options) < 2:
+        options = []  # nothing to choose from
     single_height = (single or {}).get("height") if isinstance((single or {}).get("height"), int) else 0
     if pair and (single is None or pair[0]["height"] >= PAIR_GAIN * max(single_height, 1)):
         video, audio = pair
@@ -175,6 +226,7 @@ def pick_format(info: dict[str, Any]) -> Resolved | None:
             needs_headers=_harmful_headers(video.get("http_headers")) or _harmful_headers(audio.get("http_headers")),
             audio_url=audio["url"],
             fallback_url=fallback,
+            options=options,
         )
     assert single is not None
     hls = single.get("protocol") in {"m3u8", "m3u8_native"}
@@ -185,6 +237,7 @@ def pick_format(info: dict[str, Any]) -> Resolved | None:
         height=single.get("height") if isinstance(single.get("height"), int) else None,
         duration=duration,
         needs_headers=_harmful_headers(single.get("http_headers")),
+        options=options,
     )
 
 
