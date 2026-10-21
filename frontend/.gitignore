@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# end-to-end test fixtures and reports
+e2e/.media/
+test-results/
+playwright-report/
