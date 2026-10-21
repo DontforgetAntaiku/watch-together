@@ -192,5 +192,12 @@
       "twitchClip": "a Twitch clip",
       "streamable": "a Streamable video"
     }
+  },
+  "pwa": {
+    "install": "Install",
+    "iosHint": "Tap the Share button, then \"Add to Home Screen\".",
+    "update": "A new version is ready.",
+    "reload": "Reload",
+    "later": "Later"
   }
 }

@@ -1,0 +1,12 @@
+@reference "../../index.css";
+
+.install {
+  @apply relative;
+}
+.install__btn {
+  @apply min-h-10 px-4 py-1 text-sm;
+}
+.install__hint {
+  @apply absolute right-0 z-30 m-0 mt-2 w-64 rounded-xl border border-line bg-surface p-3 text-xs text-muted;
+  top: 100%;
+}

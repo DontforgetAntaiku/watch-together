@@ -4,7 +4,7 @@
   @apply mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-10;
 }
 .home__bar {
-  @apply flex items-center justify-between gap-3 py-1;
+  @apply flex flex-wrap items-center justify-between gap-x-3 py-1;
 }
 .home__main {
   @apply flex flex-1 flex-col justify-center gap-10 py-6;
@@ -92,4 +92,8 @@
 }
 .home__num {
   @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent font-bold text-accent-ink;
+}
+
+.home__tools {
+  @apply ml-auto flex flex-wrap items-center justify-end gap-2;
 }

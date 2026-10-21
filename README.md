@@ -7,7 +7,7 @@
 Open a page, get a short room code, share it. Everyone's browser plays the video by itself,
 and the server only passes tiny play, pause and seek messages.
 
-Free · Open source · No account · No install · English and Russian · Mobile friendly
+Free · Open source · No account · No install · Installable app (PWA) · English and Russian · Mobile friendly
 
 <img src="docs/room-light.png" alt="Watch Together — a room, light theme" width="780">
 
@@ -57,6 +57,7 @@ A single small VPS can host thousands of rooms.
 - **Phone-first layout** — pinned player while you scroll, big touch targets, safe-area aware, landscape mode that fits the screen,
   the system **Share** sheet for invites, and a source panel that tucks away once a video is loaded.
 - **English and Russian** — follows the browser language, switch any time; easy to add more (see below).
+- **Installable app (PWA)** — an **Install** button (Chrome, Edge, Android) or *Share → Add to Home Screen* (iPhone, iPad) puts it on your home screen or desktop, in its own window. The page shell is cached, so the app opens instantly and even offline (a room itself needs the connection). A new version offers a **Reload** button and never reloads by itself, so it can't cut a video.
 - **Light and dark theme** — follows the system.
 - **Private by design** — no analytics, no cookies, no accounts, no CDN fonts. Third parties are contacted only when you use them:
   YouTube or Vimeo for their links, and a STUN server (Google's by default) for peer-to-peer sharing. See [Privacy](#privacy).
@@ -160,6 +161,7 @@ The frontend is a static site; the backend is one container on `127.0.0.1`. Put 
 - Serve the static folder and fall back to `/index.html` for unknown paths (rooms live at `/r/CODE`).
 - Proxy `/api/` to `http://127.0.0.1:${BACKEND_PORT}/api/` and pass `X-Real-IP` (used for rate limits).
 - **Run a single backend worker**: rooms are kept in the memory of that process.
+- Serve `/sw.js`, `/manifest.webmanifest` and `/index.html` with `Cache-Control: no-cache` (otherwise installed copies keep an old version), the manifest as `application/manifest+json`, and `/assets/` as `immutable`. HTTPS is required for installing. (`sub_deploy.sh` detects the worker and does all of this.)
 - No WebSocket configuration is needed: live updates use plain **Server-Sent Events**, so any HTTP proxy works.
   Keep response buffering off for the events route (the backend already sends `X-Accel-Buffering: no`).
 
@@ -231,6 +233,7 @@ backend/
 ├── tests/                   pytest: room logic and API
 └── Dockerfile               python:3.14-slim
 frontend/
+├── public/                  sw.js (the worker), manifest.webmanifest, icons/
 ├── src/
 │   ├── components/          Home, Room, Player, VideoPlayer, EmbedPlayer, StreamPlayer, Controls, SourcePanel, … (each: Name/Name.tsx + Name.css)
 │   ├── i18n/                i18next setup and locales/{en,ru}.json
@@ -239,6 +242,7 @@ frontend/
 │   ├── lib/adapters.ts      HTML video, YouTube and Vimeo behind one interface
 │   ├── lib/embedAdapters.ts Twitch, Streamable (player.js protocol) and the provider factory
 │   ├── lib/embed.ts         recognising platform links
+│   ├── lib/pwa.ts           service worker registration, update and install state
 │   ├── lib/audioMix.ts      one outgoing audio track that sound inputs can join later
 │   ├── lib/p2p.ts           WebRTC sharer and viewer
 │   ├── lib/clock.ts         server clock estimate and playhead maths
@@ -316,6 +320,14 @@ The settings are listed in `.env.example`. Please read this before enabling it:
   **Run the backend where it cannot reach anything private.** A Docker container can usually still reach the host and the local network. Point `RESOLVER_PROXY` at an egress proxy that refuses private ranges, or block it with firewall rules.
 - Set `RESOLVER_ALLOWED_HOSTS` to a short list of sites if you only need a few. Empty means any public site.
 - It sends requests to other sites from your server's address, which may get that address rate limited or blocked, and some sites' terms forbid automated access. You decide whether that is acceptable.
+
+### How the app shell and updates work
+
+`public/sw.js` precaches the shell (page, scripts, styles, fonts, icons; about 0.5 MB) and the build fills in its file list and a cache name per build (`vite.config.ts`).
+Pages go network-first, so a new version arrives at once, and fall back to the cached shell when offline. Hashed files in `/assets/` and the icons are cache-first.
+It never touches `/api` (rooms, live events), anything on another origin (video hosts, YouTube, Twitch) or range requests (video), so playback is unaffected.
+The worker activates immediately; once a new one has taken over, a small bar offers **Reload**. The page checks for a new version when it becomes visible, when the network returns, and every 30 minutes.
+The worker is registered in production builds only, so `npm run dev` never caches anything.
 
 ## Adding a language
 

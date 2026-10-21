@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { FormEvent } from 'react'
 import { createRoom, errorText, parseCode, roomInfo } from '../../lib/api'
 import { go } from '../../lib/router'
+import { InstallButton } from '../InstallButton/InstallButton'
 import { LangSwitch } from '../LangSwitch/LangSwitch'
 import { Logo } from '../Logo/Logo'
 import './Home.css'
@@ -47,7 +48,10 @@ export function Home() {
     <div className="home">
       <header className="home__bar">
         <Logo />
-        <LangSwitch />
+        <div className="home__tools">
+          <InstallButton />
+          <LangSwitch />
+        </div>
       </header>
       <main className="home__main">
         <section className="home__hero">

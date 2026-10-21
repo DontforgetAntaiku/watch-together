@@ -5,6 +5,7 @@ import { go, usePath } from './lib/router'
 import { Footer } from './components/Footer/Footer'
 import { Home } from './components/Home/Home'
 import { Room } from './components/Room/Room'
+import { UpdateToast } from './components/UpdateToast/UpdateToast'
 
 function roomCode(path: string): string | null {
   const m = path.match(/^\/r\/([A-Za-z0-9]+)\/?$/)
@@ -28,6 +29,7 @@ export default function App() {
     <>
       {code ? <Room key={code} code={code} /> : <Home />}
       <Footer />
+      <UpdateToast />
     </>
   )
 }
