@@ -1,0 +1,95 @@
+@reference "../../index.css";
+
+.home {
+  @apply mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-10;
+}
+.home__bar {
+  @apply py-1;
+}
+.home__main {
+  @apply flex flex-1 flex-col justify-center gap-10 py-6;
+}
+@media (min-width: 768px) {
+  .home__main {
+    @apply gap-14 py-8;
+  }
+}
+.home__kicker {
+  @apply m-0 text-sm font-semibold uppercase tracking-widest text-accent-text;
+}
+.home__title {
+  @apply m-0 mt-2 text-[2.6rem] font-extrabold leading-[1.04] tracking-tight;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 640px) {
+  .home__title {
+    @apply text-7xl;
+  }
+}
+.home__lead {
+  @apply mt-4 max-w-2xl text-base text-muted;
+}
+@media (min-width: 640px) {
+  .home__lead {
+    @apply mt-5 text-lg;
+  }
+}
+.home__accent {
+  background: linear-gradient(100deg, var(--accent-text), var(--pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.home__actions {
+  @apply mt-8 flex flex-col gap-3;
+}
+@media (min-width: 640px) {
+  .home__code {
+    width: 11rem;
+    flex: none;
+  }
+  .home__actions {
+    @apply flex-row flex-wrap items-center gap-4;
+  }
+}
+.home__create {
+  @apply min-h-14 px-8 py-3 text-lg;
+}
+.home__join {
+  @apply flex gap-2;
+}
+.home__join .field {
+  @apply flex-1;
+}
+.home__code {
+  @apply font-mono uppercase tracking-widest;
+}
+.home__code::placeholder {
+  @apply font-sans normal-case tracking-normal;
+}
+.home__error {
+  @apply mt-4 rounded-xl bg-danger px-4 py-3 text-sm text-white;
+  max-width: 34rem;
+}
+.home__steps {
+  @apply m-0 grid list-none gap-4 p-0;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+  .home__steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.home__step {
+  @apply rounded-2xl border border-line bg-surface p-5;
+}
+.home__step h2 {
+  @apply m-0 mt-3 text-lg font-bold;
+}
+.home__step p {
+  @apply mb-0 mt-1 text-sm text-muted;
+}
+.home__num {
+  @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent font-bold text-accent-ink;
+}

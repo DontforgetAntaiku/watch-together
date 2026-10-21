@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+
+:root {
+  color-scheme: light;
+  --bg: #f4f6fc;
+  --surface: #ffffff;
+  --surface-2: #e9edf8;
+  --line: #d5dcee;
+  --text: #0f1629;
+  --muted: #475069;
+  --accent: #4f46e5;
+  --accent-ink: #ffffff;
+  --accent-text: #4338ca;
+  --pink: #d6246e;
+  --danger: #b42318;
+  --ok: #157f3b;
+  --glow-a: rgba(79, 70, 229, 0.14);
+  --glow-b: rgba(214, 36, 110, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0a0f1f;
+    --surface: #121a31;
+    --surface-2: #1a2543;
+    --line: #29365c;
+    --text: #eef1fc;
+    --muted: #a9b3d1;
+    --accent: #8f93ff;
+    --accent-ink: #0a0f1f;
+    --accent-text: #aab0ff;
+    --pink: #ff7ab0;
+    --danger: #c42d22;
+    --ok: #6ee09a;
+    --glow-a: rgba(143, 147, 255, 0.16);
+    --glow-b: rgba(255, 122, 176, 0.1);
+  }
+}
+
+@theme inline {
+  --font-sans: 'Bricolage Grotesque Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-pink: var(--pink);
+}
+
+html {
+  overflow-x: clip;
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply m-0 min-h-svh bg-bg font-sans text-ink antialiased;
+  background-image:
+    radial-gradient(60rem 30rem at 85% -10%, var(--glow-a), transparent 70%),
+    radial-gradient(40rem 26rem at -10% 0%, var(--glow-b), transparent 70%);
+  background-repeat: no-repeat;
+  overscroll-behavior-y: none;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+#root {
+  @apply flex min-h-svh flex-col;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shared controls. Any inline icon inside a button gets a size here so a bare <svg> can never blow up. */
+.btn {
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 py-2 text-base font-semibold text-ink no-underline;
+}
+.btn:hover {
+  @apply bg-surface-2;
+}
+.btn svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+.btn--primary {
+  @apply border-transparent bg-accent text-accent-ink;
+}
+.btn--primary:hover {
+  @apply bg-accent brightness-110;
+}
+.btn:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.field {
+  @apply min-h-11 w-full rounded-xl border border-line bg-bg px-4 py-2 text-ink;
+  font-size: 16px; /* 16px keeps iOS from zooming into the field */
+}
+.field::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.sr-only {
+  @apply absolute m-[-1px] h-px w-px overflow-hidden border-0 p-0 whitespace-nowrap;
+  clip-path: inset(50%);
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .field {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,51 @@
+@reference "../../index.css";
+
+.ticket {
+  @apply flex flex-col gap-3;
+}
+.ticket__stub {
+  @apply relative flex items-center justify-between gap-3 rounded-2xl border border-dashed border-accent-text bg-surface px-5 py-3;
+}
+.ticket__stub::before,
+.ticket__stub::after {
+  content: '';
+  @apply absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-line bg-bg;
+}
+.ticket__stub::before {
+  left: -9px;
+}
+.ticket__stub::after {
+  right: -9px;
+}
+.ticket__label {
+  @apply text-xs font-semibold uppercase tracking-widest text-muted;
+}
+.ticket__code {
+  @apply font-mono text-3xl font-bold text-accent-text;
+  letter-spacing: 0.18em;
+  margin-right: -0.18em;
+}
+.ticket__actions {
+  @apply grid gap-2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ticket__actions > :first-child:nth-last-child(3) {
+  grid-column: 1 / -1;
+}
+.ticket__btn {
+  @apply px-3 text-sm;
+}
+@media (min-width: 640px) {
+  .ticket {
+    @apply flex-row flex-wrap items-center;
+  }
+  .ticket__stub {
+    @apply justify-start gap-4;
+  }
+  .ticket__actions {
+    @apply flex flex-wrap;
+  }
+  .ticket__btn {
+    @apply px-5;
+  }
+}

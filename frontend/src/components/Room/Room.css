@@ -1,0 +1,62 @@
+@reference "../../index.css";
+
+.room {
+  @apply mx-auto flex w-full max-w-6xl flex-1 flex-col px-4;
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+.room__bar {
+  @apply flex items-center justify-between gap-3 py-1;
+}
+.room__status {
+  @apply m-0 rounded-full bg-surface px-3 py-1 text-sm text-muted;
+}
+.room__status[data-state='live']::before {
+  content: '';
+  @apply mr-2 inline-block h-2 w-2 rounded-full bg-ok;
+}
+.room__status[data-state='reconnecting'] {
+  @apply text-ink;
+}
+.room__main {
+  @apply flex flex-col gap-4;
+}
+.room__grid {
+  @apply grid gap-4;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1000px) {
+  .room__grid {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    align-items: start;
+  }
+}
+.room__lost {
+  @apply mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-4 px-4 text-center;
+}
+.room__lost h1 {
+  @apply m-0 text-3xl font-bold;
+}
+.room__lost p {
+  @apply m-0 text-muted;
+}
+
+/* Phones, portrait: the player stays pinned while the panel below scrolls, edge to edge. */
+@media (max-width: 999px) and (orientation: portrait) {
+  .room__stage {
+    @apply sticky z-20 bg-bg;
+    top: env(safe-area-inset-top);
+    margin-inline: -1rem;
+    padding-bottom: 0.5rem;
+    box-shadow: 0 8px 12px -10px rgb(0 0 0 / 0.5);
+  }
+  .room__stage .player {
+    @apply rounded-none border-x-0;
+  }
+}
+/* Phones, landscape: fit the whole player in the short viewport. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .room__stage .player {
+    width: min(100%, calc((100svh - 1.5rem) * 16 / 9));
+    margin-inline: auto;
+  }
+}

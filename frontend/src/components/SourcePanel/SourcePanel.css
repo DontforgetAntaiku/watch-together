@@ -1,0 +1,83 @@
+@reference "../../index.css";
+
+.source {
+  @apply rounded-2xl border border-line bg-surface p-4;
+}
+@media (min-width: 640px) {
+  .source {
+    @apply p-5;
+  }
+}
+.source__head {
+  @apply flex items-center justify-between gap-3;
+}
+.source__title {
+  @apply m-0 text-xl font-bold;
+}
+.source__toggle {
+  @apply min-h-10 px-4 py-1 text-sm;
+}
+.source__summary {
+  @apply mb-0 mt-2 text-sm text-muted;
+  overflow-wrap: anywhere;
+}
+.source__summary strong {
+  @apply text-ink;
+}
+@media (min-width: 1000px) {
+  .source__toggle,
+  .source__summary {
+    display: none;
+  }
+}
+@media (max-width: 999px) {
+  .source[data-open='false'] .source__body {
+    display: none;
+  }
+}
+.source__hint {
+  @apply mb-4 mt-1 text-sm text-muted;
+}
+.source__hint--small {
+  @apply mb-0 mt-2;
+}
+.source__row {
+  @apply flex flex-col gap-2;
+}
+@media (min-width: 640px) and (max-width: 999px) {
+  .source__row {
+    @apply flex-row;
+  }
+}
+.source__row .field {
+  @apply flex-1;
+}
+.source__btn {
+  @apply min-h-11;
+}
+.source__check {
+  @apply mt-3 flex min-h-11 items-center gap-3 text-sm text-muted;
+}
+.source__check input {
+  @apply h-6 w-6 flex-none;
+  accent-color: var(--accent);
+}
+.source__or {
+  @apply my-4 text-center text-xs font-semibold uppercase tracking-widest text-muted;
+}
+.source__file {
+  @apply w-full;
+}
+.source__suggest {
+  @apply mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
+}
+.source__now {
+  @apply mb-0 mt-4 break-words border-t border-line pt-3 text-sm text-muted;
+}
+.source__now strong {
+  @apply text-ink;
+  overflow-wrap: anywhere;
+}
+.source__link {
+  @apply cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-accent-text underline;
+}
