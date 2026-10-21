@@ -25,9 +25,26 @@ function serviceWorkerPrecache(): Plugin {
   }
 }
 
+/**
+ * Link previews need absolute addresses. Set SITE_URL (for example https://watch.example.com) when you build and the
+ * preview tags get them (plus og:url and a canonical link); without it the tags use plain paths.
+ */
+function siteUrl(): Plugin {
+  const base = (process.env.SITE_URL ?? '').trim().replace(/\/+$/, '')
+  return {
+    name: 'site-url',
+    transformIndexHtml(html) {
+      const withUrl = base
+        ? html.replace('<meta property="og:type"', `<meta property="og:url" content="${base}/" />\n    <link rel="canonical" href="${base}/" />\n    <meta property="og:type"`)
+        : html
+      return withUrl.replaceAll('%SITE_URL%', base)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), serviceWorkerPrecache()],
+  plugins: [react(), tailwindcss(), siteUrl(), serviceWorkerPrecache()],
   build: { chunkSizeWarningLimit: 700 }, // hls.js is a lazy chunk, loaded only for .m3u8 links
   define: {
     'import.meta.env.VITE_DEBUG': JSON.stringify(process.env.FRONTEND_DEBUG ?? 'True'),

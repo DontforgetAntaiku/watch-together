@@ -9,6 +9,9 @@ export interface EmbedAdapter extends MediaAdapter {
   onPlay: () => void
   onPause: () => void
   onSeeked: () => void
+  onEnded: () => void
+  /** The title of the video, when the platform tells it. */
+  title?: () => Promise<string | null>
   destroy: () => void
 }
 
@@ -23,6 +26,7 @@ export class PlayerJsAdapter implements EmbedAdapter {
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
   onSeeked: () => void = () => {}
+  onEnded: () => void = () => {}
   private iframe: HTMLIFrameElement
   private origin: string
   private now = 0
@@ -97,6 +101,7 @@ export class PlayerJsAdapter implements EmbedAdapter {
       case 'ended':
         this.playing = false
         this.finished = true
+        this.onEnded()
         break
       case 'seeked':
         this.onSeeked()
@@ -164,6 +169,7 @@ export class TwitchAdapter implements EmbedAdapter {
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
   onSeeked: () => void = () => {}
+  onEnded: () => void = () => {}
   private player: TwitchPlayer
   private slot: HTMLElement
   private isReady = false
@@ -201,6 +207,7 @@ export class TwitchAdapter implements EmbedAdapter {
     player.addEventListener('seek', () => adapter.onSeeked())
     player.addEventListener('ended', () => {
       adapter.isPlaying = false
+      adapter.onEnded()
     })
     window.setTimeout(() => !adapter.isReady && onError(i18n.t('errors.embedBlocked')), READY_TIMEOUT_MS)
     return adapter

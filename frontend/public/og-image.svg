@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a0f1f"/><stop offset="1" stop-color="#1b1646"/></linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f93ff"/><stop offset="1" stop-color="#ff7ab0"/></linearGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7ab0"/><stop offset="1" stop-color="#8f93ff"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#8f93ff" stop-opacity="0.45"/><stop offset="1" stop-color="#8f93ff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="900" cy="330" r="330" fill="url(#glow)"/>
+  <!-- logo -->
+  <rect x="72" y="72" width="64" height="64" rx="16" fill="#8f93ff"/>
+  <path d="M96 90v28l24-14z" fill="#0a0f1f"/>
+  <text x="156" y="118" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700" fill="#eef1fc">Watch Together</text>
+  <!-- headline -->
+  <text x="72" y="300" font-family="DejaVu Sans, Arial, sans-serif" font-size="84" font-weight="800" fill="#ffffff">Press play,</text>
+  <text x="72" y="395" font-family="DejaVu Sans, Arial, sans-serif" font-size="84" font-weight="800" fill="#ff7ab0">together.</text>
+  <text x="72" y="470" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#a9b3d1">Watch videos in sync with friends.</text>
+  <text x="72" y="512" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#a9b3d1">One short room code. No accounts, no installs.</text>
+  <!-- art -->
+  <g transform="translate(640 120) scale(1.18)">
+    <rect x="30" y="50" width="320" height="200" rx="18" fill="#121a31" stroke="#29365c" stroke-width="2"/>
+    <rect x="42" y="62" width="296" height="150" rx="10" fill="url(#screen)"/>
+    <circle cx="190" cy="137" r="30" fill="#ffffff" fill-opacity="0.92"/>
+    <path d="M181 120v34l28-17z" fill="#4f46e5"/>
+    <rect x="42" y="226" width="296" height="6" rx="3" fill="#1a2543"/>
+    <rect x="42" y="226" width="148" height="6" rx="3" fill="#8f93ff"/>
+    <circle cx="190" cy="229" r="7" fill="#ffffff" stroke="#8f93ff" stroke-width="3"/>
+    <path d="M150 262h80l8 18H142z" fill="#1a2543"/>
+    <rect x="318" y="120" width="112" height="206" rx="20" fill="#121a31" stroke="#29365c" stroke-width="2"/>
+    <rect x="328" y="138" width="92" height="120" rx="10" fill="url(#phone)"/>
+    <circle cx="374" cy="198" r="22" fill="#ffffff" fill-opacity="0.92"/>
+    <path d="M367 186v24l20-12z" fill="#d6246e"/>
+    <rect x="328" y="272" width="92" height="6" rx="3" fill="#1a2543"/>
+    <rect x="328" y="272" width="46" height="6" rx="3" fill="#ff7ab0"/>
+    <circle cx="374" cy="275" r="6" fill="#ffffff" stroke="#ff7ab0" stroke-width="3"/>
+    <path d="M190 137C250 60 340 80 374 198" fill="none" stroke="#aab0ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 10"/>
+    <rect x="246" y="6" width="148" height="40" rx="12" fill="#121a31" stroke="#aab0ff" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="320" y="33" text-anchor="middle" font-family="DejaVu Sans Mono, monospace" font-size="22" font-weight="700" letter-spacing="3" fill="#aab0ff">K7M2QX</text>
+  </g>
+</svg>

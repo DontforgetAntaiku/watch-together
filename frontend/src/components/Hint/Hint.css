@@ -1,0 +1,29 @@
+@reference "../../index.css";
+
+.hint {
+  @apply relative inline-flex;
+}
+.hint__btn {
+  @apply inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface p-0 font-serif text-xs font-bold italic text-muted;
+}
+.hint__btn:hover {
+  @apply border-accent-text text-accent-text;
+}
+.hint__tip {
+  @apply pointer-events-none absolute left-0 top-full z-40 mt-2 hidden w-64 rounded-xl border border-line bg-surface p-3 text-left text-xs font-normal normal-case leading-snug tracking-normal text-ink shadow-lg;
+  max-width: min(18rem, 78vw);
+}
+.hint:hover .hint__tip,
+.hint[data-open='true'] .hint__tip,
+.hint__btn:focus-visible + .hint__tip {
+  @apply block;
+}
+/* Near the right edge the bubble opens to the left. */
+.hint--end .hint__tip {
+  @apply left-auto right-0;
+}
+@media (pointer: coarse) {
+  .hint__btn {
+    @apply h-8 w-8;
+  }
+}

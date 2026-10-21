@@ -14,9 +14,14 @@
     "step1Title": "Make a room",
     "step1Text": "One click gives you a short code. Send the code, or the invite link, to your friends.",
     "step2Title": "Open your video",
-    "step2Text": "Paste a link or open a file from your disk. Everyone picks their own, or you share one with the whole room.",
+    "step2Text": "Paste a link and press Play, or open a file, or share a browser tab. Everyone in the room sees it.",
     "step3Title": "Press play",
-    "step3Text": "Play, pause and seek are shared. The video itself never goes through our server."
+    "step3Text": "Play, pause and seek are shared. The watch list keeps the next videos ready; the video itself never goes through our server.",
+    "chip": {
+      "sync": "Frame-accurate sync",
+      "sources": "YouTube · Vimeo · Twitch · files · tabs",
+      "free": "Free and open source"
+    }
   },
   "footer": {
     "credit": "Free and open source. Built by"
@@ -72,7 +77,7 @@
     "viewers_other": "{{count}} people are watching",
     "stopShare": "Stop sharing",
     "linkTitle": "Link",
-    "linkHint": "YouTube, Vimeo, Twitch, Streamable, or a direct video link (.mp4, .webm, .m3u8). Each person loads it themselves.",
+    "linkHint": "Paste a link and press Play: everyone in the room plays it. YouTube, Vimeo, Twitch, Streamable and direct video links (.mp4, .webm, .m3u8) work; each person's browser loads the video itself.",
     "linkLabel": "Video link",
     "linkPlaceholder": "Paste a video link",
     "load": "Load link",
@@ -83,7 +88,7 @@
     "openFile": "Open a file from this device",
     "shareFile": "Share this file with the room",
     "shareFileHint": "Friends watch it straight from your browser (peer to peer), so they need no copy. Your upload speed sets their quality. Press play in your own player first.",
-    "fileHint": "The file stays on your device. Open it, then share it with the room, or have everyone open the same file.",
+    "fileHint": "Open a video file from this device, only for you. Then you can share it with the room.",
     "tabTitle": "Browser tab or window",
     "tabHint": "For sites that only play on their own page: open the video in another tab and share that tab with sound.",
     "shareTab": "Share a tab or window",
@@ -91,7 +96,17 @@
     "sending": "Sending {{info}}",
     "resolve": "Resolve a page link",
     "resolving": "Looking it up…",
-    "resolveHint": "Asks this server (it runs yt-dlp) to find the video behind a page. It only works for some sites, and the result may refuse to play for you or your friends: many hosts tie the link to the server's address or to their own site."
+    "resolveHint": "Asks this server (it runs yt-dlp) to find the video behind a page. It only works for some sites, and the result may refuse to play for you or your friends: many hosts tie the link to the server's address or to their own site.",
+    "play": "Play",
+    "addToList": "Add to the watch list",
+    "badLink": "That does not look like a web address.",
+    "fileShort": "File",
+    "tabShort": "Tab",
+    "shareFileShort": "Share this file",
+    "lookup": "Try another way",
+    "lookupHint": "Asks this server to find the video behind the page (it runs yt-dlp). Helps with some sites, but the result may refuse to play for you or your friends: many hosts tie links to the server's address or to their own site.",
+    "returnToRoom": "Back to the room's video",
+    "shareFileTip": "The file is only on your device. Press \"Share this file\" under the video to let friends watch it through your browser."
   },
   "player": {
     "emptyTitle": "No video yet",
@@ -112,7 +127,11 @@
     "qualityAuto": "Auto",
     "notSynced": "Live streams and clips cannot be synchronized: everyone watches on their own.",
     "waiting_one": "Waiting for {{count}} person to load…",
-    "waiting_other": "Waiting for {{count}} people to load…"
+    "waiting_other": "Waiting for {{count}} people to load…",
+    "lookingUp": "Looking for the video…",
+    "lookingUpText": "The platform's player did not take it, so this server is trying to find the video behind the page.",
+    "cantPlay": "This link could not be played",
+    "cantPlayHint": "Try a direct video link, share a browser tab with the video, or open the file."
   },
   "controls": {
     "play": "Play",
@@ -193,7 +212,8 @@
       "twitchLive": "a Twitch stream",
       "twitchClip": "a Twitch clip",
       "streamable": "a Streamable video"
-    }
+    },
+    "frameTitle": "Embedded video player"
   },
   "pwa": {
     "install": "Install",
@@ -201,5 +221,23 @@
     "update": "A new version is ready.",
     "reload": "Reload",
     "later": "Later"
+  },
+  "hint": {
+    "more": "More information"
+  },
+  "list": {
+    "title": "Watch list",
+    "empty": "Nothing here yet. Paste a link and press Play, or use + to queue it for later. The room plays the next one when a video ends.",
+    "play": "Play {{name}}",
+    "up": "Move {{name}} up",
+    "remove": "Remove {{name}}",
+    "added": "Added to the watch list."
+  },
+  "tabs": {
+    "label": "Sections",
+    "add": "Play",
+    "list": "List",
+    "share": "Share",
+    "room": "Room"
   }
 }

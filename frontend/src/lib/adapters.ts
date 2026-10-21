@@ -77,6 +77,7 @@ export class YouTubeAdapter implements MediaAdapter {
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
   onSeeked: () => void = () => {}
+  onEnded: () => void = () => {}
 
   constructor(player: YT.Player) {
     this.player = player
@@ -99,6 +100,7 @@ export class YouTubeAdapter implements MediaAdapter {
         onStateChange: (e) => {
           if (e.data === api.PlayerState.PLAYING) adapter?.onPlay()
           else if (e.data === api.PlayerState.PAUSED) adapter?.onPause()
+          else if (e.data === api.PlayerState.ENDED) adapter?.onEnded()
         },
       },
     })
@@ -121,6 +123,7 @@ export class YouTubeAdapter implements MediaAdapter {
   }
 
   stalled = () => this.player.getPlayerState?.() === 3
+  title = () => Promise.resolve(this.player.getVideoData?.().title ?? null)
   ready = () => typeof this.player.getCurrentTime === 'function' && this.player.getPlayerState() !== -1
   time = () => this.player.getCurrentTime()
   duration = () => this.player.getDuration() || 0
@@ -161,6 +164,7 @@ export class VimeoAdapter implements MediaAdapter {
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
   onSeeked: () => void = () => {}
+  onEnded: () => void = () => {}
 
   constructor(player: VimeoPlayer) {
     this.player = player
@@ -200,6 +204,7 @@ export class VimeoAdapter implements MediaAdapter {
     })
     player.on('ended', () => {
       adapter.isEnded = true
+      adapter.onEnded()
     })
     player.on('seeked', (d) => {
       adapter.now = d.seconds
@@ -221,6 +226,7 @@ export class VimeoAdapter implements MediaAdapter {
   }
 
   stalled = () => this.buffering
+  title = () => this.player.getVideoTitle().catch(() => null)
   ready = () => this.loaded
   time = () => this.now
   duration = () => this.len

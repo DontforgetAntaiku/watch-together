@@ -8,100 +8,114 @@
     @apply p-5;
   }
 }
-.source__head {
-  @apply flex items-center justify-between gap-3;
+.source__form {
+  @apply grid items-center gap-2;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
-.source__title {
-  @apply m-0 text-xl font-bold;
+.source__field {
+  @apply flex items-center gap-2;
+  grid-column: 1 / -1;
 }
-.source__toggle {
-  @apply min-h-10 px-4 py-1 text-sm;
-}
-.source__summary {
-  @apply mb-0 mt-2 text-sm text-muted;
-  overflow-wrap: anywhere;
-}
-.source__summary strong {
-  @apply text-ink;
-}
-@media (min-width: 1000px) {
-  .source__toggle,
-  .source__summary {
-    display: none;
-  }
-}
-@media (max-width: 999px) {
-  .source[data-open='false'] .source__body {
-    display: none;
-  }
-}
-.source__hint {
-  @apply mb-4 mt-1 text-sm text-muted;
-}
-.source__hint--small {
-  @apply mb-0 mt-2;
-}
-.source__row {
-  @apply flex flex-col gap-2;
-}
-@media (min-width: 640px) and (max-width: 999px) {
-  .source__row {
-    @apply flex-row;
-  }
-}
-.source__row .field {
+.source__field .field {
   @apply flex-1;
 }
-.source__btn {
-  @apply min-h-11;
+.source__play {
+  @apply min-h-11 px-6;
+  grid-column: 1;
 }
-.source__check {
-  @apply mt-3 flex min-h-11 items-center gap-3 text-sm text-muted;
+.source__add {
+  @apply min-h-11 w-11 px-0;
+  grid-column: 2;
 }
-.source__check input {
-  @apply h-6 w-6 flex-none;
-  accent-color: var(--accent);
+.source__add svg {
+  @apply h-5 w-5;
 }
-.source__or {
-  @apply my-4 text-center text-xs font-semibold uppercase tracking-widest text-muted;
+.source__alt {
+  @apply mt-3 flex flex-wrap items-center gap-2;
 }
-.source__file {
-  @apply w-full;
+.source__chip {
+  @apply inline-flex items-center gap-1;
 }
-.source__suggest {
-  @apply mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
+.source__chipbtn {
+  @apply min-h-10 px-4 py-1 text-sm;
+}
+.source__small {
+  @apply min-h-10 px-4 py-1 text-sm;
+}
+.source__notice {
+  @apply mb-0 mt-3 rounded-xl border border-accent-text bg-surface-2 px-3 py-2 text-sm;
 }
 .source__now {
-  @apply mb-0 mt-4 break-words border-t border-line pt-3 text-sm text-muted;
+  @apply mt-3 border-t border-line pt-3;
 }
-.source__now strong {
-  @apply text-ink;
+.source__nowtext {
+  @apply m-0 text-sm text-muted;
   overflow-wrap: anywhere;
 }
-.source__link {
-  @apply cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-accent-text underline;
+.source__nowtext strong {
+  @apply text-ink;
 }
-
-.source__sub {
-  @apply mb-0 mt-5 text-sm font-bold uppercase tracking-widest text-muted;
-}
-.source__share {
-  @apply mt-2;
+.source__nowactions {
+  @apply mt-2 flex flex-wrap items-center gap-2;
 }
 .source__live {
-  @apply mb-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
+  @apply mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
 }
 .source__live p {
   @apply m-0;
 }
-.source__error {
-  @apply mb-0 mt-4 rounded-xl bg-danger px-4 py-3 text-sm text-white;
+
+.source__section + .source__section {
+  @apply mt-3;
+}
+.source__tip {
+  @apply mb-0 mt-3 text-sm text-muted;
 }
 
-.source__warn {
-  @apply rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink;
+/* On a computer the sections sit one under the other, with a divider. */
+@media (min-width: 1000px) {
+  .source__section + .source__section {
+    @apply border-t border-line pt-3;
+  }
 }
 
-.source__resolve {
-  @apply mt-2;
+/* Phones: one section at a time, chosen with the tab bar at the bottom. */
+@media (max-width: 999px) {
+  .source {
+    @apply rounded-3xl p-4;
+  }
+  .room[data-tab='add'] .source__section:not([data-section='add']),
+  .room[data-tab='list'] .source__section:not([data-section='list']),
+  .room[data-tab='share'] .source__section:not([data-section='share']),
+  .room[data-tab='room'] .source {
+    display: none;
+  }
+  .source__section + .source__section {
+    @apply mt-0;
+  }
+  /* The list is the only thing in its tab: no divider above it. */
+  .source__section[data-section='list'] .list {
+    @apply mt-0 border-0 pt-0;
+  }
+  .source__chipbtn,
+  .source__small {
+    @apply min-h-12;
+  }
+  .source__alt {
+    @apply mt-0 grid gap-3;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+  .source__chip {
+    @apply flex;
+  }
+  .source__chip .btn {
+    @apply flex-1;
+  }
+}
+/* A short landscape screen has no tab bar and shows everything. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .room[data-tab] .source__section,
+  .room[data-tab] .source {
+    display: block !important;
+  }
 }

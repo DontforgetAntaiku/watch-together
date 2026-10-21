@@ -1,0 +1,33 @@
+@reference "../../index.css";
+
+.hero-art {
+  @apply block h-auto w-full;
+  max-width: 30rem;
+  overflow: visible;
+}
+.hero-art__line {
+  animation: hero-flow 1.6s linear infinite;
+}
+.hero-art__float {
+  animation: hero-float 7s ease-in-out infinite;
+}
+.hero-art__float--late {
+  animation-duration: 9s;
+  animation-delay: -3s;
+}
+@keyframes hero-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes hero-float {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-art__line,
+  .hero-art__float {
+    animation: none;
+  }
+}

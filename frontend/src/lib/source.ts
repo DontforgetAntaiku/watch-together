@@ -1,64 +1,58 @@
 import i18n from '../i18n'
 import type { RoomSource } from './api'
-import { embedFromOffer, embedKey } from './embed'
-import type { Embed } from './embed'
+import { embedFromOffer } from './embed'
+import type { PageSource } from './page'
+import { startPage } from './page'
 
 /** What this person is watching right now. */
 export type Source =
-  | {
-      kind: 'link'
-      url: string
-      audioUrl?: string
-      fallbackUrl?: string
-      /** From the page-link lookup: the resolutions to choose from, and the chosen height. */
-      options?: { height: number; url: string; audioUrl?: string }[]
-      quality?: number
-      /** Stays the same while the quality changes, so the player is kept and only reloads its source. */
-      group?: string
-      label: string
-    }
+  | PageSource
   | { kind: 'file'; url: string; label: string }
-  | { kind: 'embed'; embed: Embed; label: string }
   | { kind: 'watch'; sharer: string; dur: number | null; live: boolean; label: string }
   | { kind: 'screen'; label: string }
 
-export function hostLabel(url: string): string {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url.slice(0, 40)
+import { embedLabel, hostLabel, titleFromUrl } from './labels'
+import type { QueueItem } from './api'
+
+/** What to call what is being watched, worked out now so it follows the language. */
+export function labelFor(s: Source, queue: QueueItem[]): string {
+  switch (s.kind) {
+    case 'file':
+      return s.label
+    case 'screen':
+      return i18n.t('room.tabName')
+    case 'watch':
+      return s.live ? i18n.t('room.tabName') : s.label
+    case 'page':
+      return queue.find((q) => q.id === s.item)?.title || s.label || (s.embed ? embedLabel(s.embed) : (titleFromUrl(s.url) ?? hostLabel(s.url)))
   }
 }
 
-/** Short name used in "Watching: …". */
-export function embedLabel(e: Embed): string {
-  return i18n.t(`embed.label.${embedKey(e)}`)
-}
-
-/** Name used in "Someone offered …". */
-export function offerLabel(s: RoomSource): string {
+/** Turn what the room says is playing into what this person would watch. */
+export function fromRoom(s: RoomSource, title?: string | null): Source | null {
   switch (s.kind) {
     case 'link':
-      return hostLabel(s.url)
+      return startPage(s.url, s.item, title)
     case 'embed': {
+      // Older clients send a platform video as an `embed` source; everybody can still play it.
       const e = embedFromOffer(s)
-      return e ? i18n.t(`embed.offer.${embedKey(e)}`) : s.provider
-    }
-    case 'p2p':
-      return s.live ? i18n.t('room.tabName') : s.name
-  }
-}
-
-/** Turn something the room offers into what this person would watch. */
-export function fromOffer(s: RoomSource): Source | null {
-  switch (s.kind) {
-    case 'link':
-      return { kind: 'link', url: s.url, audioUrl: s.audio, label: hostLabel(s.url) }
-    case 'embed': {
-      const e = embedFromOffer(s)
-      return e ? { kind: 'embed', embed: e, label: embedLabel(e) } : null
+      const url = e && embedUrl(e)
+      return url ? startPage(url, undefined, title) : null
     }
     case 'p2p':
       return { kind: 'watch', sharer: s.by, dur: s.dur, live: s.live, label: s.live ? i18n.t('room.tabName') : s.name }
+  }
+}
+
+function embedUrl(e: NonNullable<ReturnType<typeof embedFromOffer>>): string {
+  switch (e.provider) {
+    case 'youtube':
+      return `https://www.youtube.com/watch?v=${e.id}`
+    case 'vimeo':
+      return `https://vimeo.com/${e.id}${e.hash ? `/${e.hash}` : ''}`
+    case 'streamable':
+      return `https://streamable.com/${e.id}`
+    case 'twitch':
+      return e.type === 'video' ? `https://www.twitch.tv/videos/${e.id}` : e.type === 'clip' ? `https://clips.twitch.tv/${e.id}` : `https://www.twitch.tv/${e.id}`
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatTime } from '../../lib/fmt'
@@ -18,7 +18,8 @@ type Props = {
   onToggle: () => void
   onSkip: (seconds: number) => void
   onScrub: (t: number) => void
-  onCommit: () => void
+  /** The person let go of the bar (no value) or moved it with the keyboard (that value). */
+  onCommit: (value?: number) => void
   onMute: () => void
   onVolume: (v: number) => void
   onFullscreen: () => void
@@ -45,6 +46,7 @@ const FS_EXIT = 'M8 5h2v5H5V8h3zm6 0h2v3h3v2h-5zM5 14h5v5H8v-3H5zm9 0h5v2h-3v3h-
 export function Controls(p: Props) {
   const { t } = useTranslation()
   const [menu, setMenu] = useState(false)
+  const dragging = useRef(false)
   const hasQuality = p.qualityOptions.length > 1
   const menuOpen = menu && p.visible
   const max = p.duration > 0 ? p.duration : 0
@@ -104,10 +106,22 @@ export function Controls(p: Props) {
             aria-label={t('controls.seek')}
             aria-valuetext={t('controls.seekValue', { time: formatTime(p.time), duration: formatTime(max) })}
             style={{ '--played': `${played}%`, '--buffered': `${buffered}%` } as CSSProperties}
-            onChange={(e) => p.onScrub(Number(e.target.value))}
-            onPointerUp={p.onCommit}
-            onKeyUp={(e) => ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && p.onCommit()}
-            onBlur={p.onCommit}
+            onChange={(e) => {
+              p.onScrub(Number(e.target.value))
+              if (!dragging.current) p.onCommit(Number(e.target.value)) // keyboard and assistive technology: no drag to wait for
+            }}
+            onPointerDown={() => {
+              dragging.current = true
+            }}
+            onPointerUp={() => {
+              dragging.current = false
+              p.onCommit()
+            }}
+            onPointerCancel={() => {
+              dragging.current = false
+              p.onCommit()
+            }}
+            onBlur={() => p.onCommit()}
           />
         )}
         <div className="controls__row">

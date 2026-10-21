@@ -15,6 +15,10 @@ type Props = {
   clock: ServerClock
   myId: () => string
   send: (msg: ClientMessage) => void
+  /** The platform would not play it (private, removed, embedding off): the page may try another way. */
+  onFailed?: (message: string) => void
+  onEnded?: () => void
+  onTitle?: (title: string) => void
 }
 
 /** Where a live stream or a clip is shown: no controllable playhead, so just the official page. */
@@ -38,7 +42,7 @@ function PlainEmbed({ embed }: { embed: Embed }) {
     <div className="embed">
       <iframe
         className="embed__host"
-        title={embed.id}
+        title={t('embed.frameTitle')}
         src={unsyncedSrc(embed) ?? undefined}
         allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
         allowFullScreen
@@ -48,8 +52,12 @@ function PlainEmbed({ embed }: { embed: Embed }) {
   )
 }
 
-function SyncedEmbed({ embed, state, clock, myId, send }: Props) {
+function SyncedEmbed({ embed, state, clock, myId, send, onFailed, onEnded, onTitle }: Props) {
   const { t } = useTranslation()
+  const callbacks = useRef({ onFailed, onEnded, onTitle })
+  useEffect(() => {
+    callbacks.current = { onFailed, onEnded, onTitle }
+  }, [onFailed, onEnded, onTitle])
   const host = useRef<HTMLDivElement>(null)
   const [adapter, setAdapter] = useState<EmbedAdapter | null>(null)
   const [ready, setReady] = useState(false)
@@ -73,7 +81,11 @@ function SyncedEmbed({ embed, state, clock, myId, send }: Props) {
       slot,
       embed,
       () => !cancelled && setReady(true),
-      (m) => !cancelled && setError(m),
+      (m) => {
+        if (cancelled) return
+        setError(m)
+        callbacks.current.onFailed?.(m)
+      },
     ).then(
       (a) => {
         if (cancelled) a.destroy()
@@ -82,7 +94,12 @@ function SyncedEmbed({ embed, state, clock, myId, send }: Props) {
           setAdapter(a)
         }
       },
-      (err: unknown) => !cancelled && setError(err instanceof Error ? err.message : t('errors.mediaGeneric')),
+      (err: unknown) => {
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : t('errors.mediaGeneric')
+        setError(message)
+        callbacks.current.onFailed?.(message)
+      },
     )
     return () => {
       cancelled = true
@@ -97,7 +114,14 @@ function SyncedEmbed({ embed, state, clock, myId, send }: Props) {
     adapter.onPlay = () => engine.handlePlay()
     adapter.onPause = () => engine.handlePause()
     adapter.onSeeked = () => engine.handleSeeked()
+    adapter.onEnded = () => callbacks.current.onEnded?.()
   }, [adapter, engine])
+
+  // Tell the room what this video is called, so the watch list can show it.
+  useEffect(() => {
+    if (!adapter || !ready) return
+    void adapter.title?.().then((title) => title && callbacks.current.onTitle?.(title))
+  }, [adapter, ready])
 
   // The embedded player cannot tell us that autoplay was refused, so look at it.
   useEffect(() => {

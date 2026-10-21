@@ -6,7 +6,7 @@ export const CODE_LENGTH = 6
 import type { Embed } from './embed'
 
 export type RoomSource =
-  | { kind: 'link'; url: string; audio?: string; by: string }
+  | { kind: 'link'; url: string; item?: string; audio?: string; by: string }
   | { kind: 'embed'; provider: string; id: string; type?: string; hash?: string | null; by: string }
   | { kind: 'p2p'; name: string; dur: number | null; live: boolean; by: string }
 
@@ -17,6 +17,8 @@ export type SourceInput =
   | { kind: 'p2p'; name: string; dur?: number | null; live?: boolean }
 
 export type Signal = { t: 'signal'; from: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp: string | null }
+
+export type QueueItem = { id: string; url: string; title: string | null; by: string }
 
 export type RoomState = {
   t: 'state'
@@ -32,6 +34,8 @@ export type RoomState = {
   /** The playhead stands still because `waiting` people are still loading. */
   hold: boolean
   waiting: number
+  /** The shared watch list. */
+  queue: QueueItem[]
 }
 
 export type ClientMessage =
@@ -39,6 +43,10 @@ export type ClientMessage =
   | ({ t: 'source' } & SourceInput)
   | { t: 'media'; dur: number | null }
   | { t: 'buffer'; on: boolean }
+  | { t: 'queue_add'; url: string; title?: string; play?: boolean }
+  | { t: 'queue_remove' | 'queue_play' | 'queue_next'; item: string }
+  | { t: 'queue_move'; item: string; index: number }
+  | { t: 'queue_title'; item: string; title: string }
   | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp?: string }
 
 export class ApiError extends Error {

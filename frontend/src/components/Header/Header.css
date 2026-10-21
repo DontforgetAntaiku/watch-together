@@ -1,0 +1,8 @@
+@reference "../../index.css";
+
+.header {
+  @apply flex flex-wrap items-center gap-x-3 py-1;
+}
+.header__tools {
+  @apply ml-auto flex flex-wrap items-center justify-end gap-2;
+}

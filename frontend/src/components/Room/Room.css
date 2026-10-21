@@ -4,9 +4,6 @@
   @apply mx-auto flex w-full max-w-6xl flex-1 flex-col px-4;
   padding-bottom: calc(2rem + env(safe-area-inset-bottom));
 }
-.room__bar {
-  @apply flex items-center justify-between gap-3 py-1;
-}
 .room__status {
   @apply m-0 mr-auto rounded-full bg-surface px-3 py-1 text-sm text-muted;
 }
@@ -41,10 +38,43 @@
   @apply grid gap-4;
   grid-template-columns: minmax(0, 1fr);
 }
+.room__stage {
+  order: 1;
+}
+.room__warn {
+  order: 2;
+}
+.room__info {
+  order: 3;
+}
+.room__grid > .source {
+  order: 4;
+}
 @media (min-width: 1000px) {
   .room__grid {
     grid-template-columns: minmax(0, 1fr) 22rem;
+    grid-template-areas:
+      'info panel'
+      'warn panel'
+      'stage panel';
+    grid-template-rows: auto auto 1fr;
     align-items: start;
+  }
+  .room__info {
+    grid-area: info;
+    order: 0;
+  }
+  .room__warn {
+    grid-area: warn;
+    order: 0;
+  }
+  .room__stage {
+    grid-area: stage;
+    order: 0;
+  }
+  .room__grid > .source {
+    grid-area: panel;
+    order: 0;
   }
 }
 .room__lost {
@@ -80,4 +110,27 @@
 
 .room__warn {
   @apply m-0 rounded-xl border border-accent-text bg-surface-2 px-4 py-3 text-sm;
+}
+
+/* The player sits in a soft glow so the page has a focus. */
+.room__stage .player {
+  box-shadow: 0 24px 60px -28px var(--glow-a), 0 2px 0 rgb(255 255 255 / 0.04) inset;
+}
+
+/* Phones: the Room tab shows the code; the other tabs show their section; the tab bar floats at the bottom. */
+@media (max-width: 999px) {
+  .room {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+  .room[data-tab]:not([data-tab='room']) .room__info {
+    display: none;
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .room {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .room[data-tab] .room__info {
+    display: block !important;
+  }
 }

@@ -1,96 +1,182 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { RoomSource } from '../../lib/api'
+import type { QueueItem } from '../../lib/api'
 import type { AudioInput } from '../../lib/audioMix'
 import { canCaptureElement, canShareScreen, isFirefox } from '../../lib/p2p'
-import { offerLabel } from '../../lib/source'
 import type { Source } from '../../lib/source'
+import { Hint } from '../Hint/Hint'
 import { SoundPicker } from '../SoundPicker/SoundPicker'
+import { WatchList } from '../WatchList/WatchList'
 import './SourcePanel.css'
 
 type Props = {
   current: Source | null
-  offer: RoomSource | null
-  offeredByMe: boolean
+  /** The name of what is being watched, in the current language. */
+  label: string
+  notice: string | null
+  items: QueueItem[]
+  currentItem: string | undefined
   sharing: 'file' | 'screen' | null
   viewers: number
   sendInfo: string | null
-  notice: string | null
-  canResolve: boolean
-  resolving: boolean
-  onResolve: (url: string, share: boolean) => void
   sound: { devices: AudioInput[] | null; active: string | null; busy: boolean; error: string | null }
-  onSoundList: () => void
-  onSoundUse: (id: string) => void
-  onSoundStop: () => void
-  onUrl: (url: string, share: boolean) => void
+  /** The server can look a page up (yt-dlp) and the current link has not been tried that way yet. */
+  canLookup: boolean
+  /** Playing something else on this device while the room has its own video. */
+  canReturn: boolean
+  onPlay: (url: string) => void
+  onAdd: (url: string) => boolean
   onFile: (file: File) => void
-  onStopOffer: () => void
-  onUseOffer: () => void
   onShareFile: () => void
   onShareScreen: () => void
   onStopShare: () => void
+  onLookup: () => void
+  onReturn: () => void
+  onSoundList: () => void
+  onSoundUse: (id: string) => void
+  onSoundStop: () => void
+  onPlayItem: (id: string) => void
+  onRemoveItem: (id: string) => void
+  onMoveItem: (id: string, index: number) => void
 }
+
+const Icon = ({ d }: { d: string }) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d={d} fill="currentColor" />
+  </svg>
+)
+const FILE = 'M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'
+const TAB = 'M3 5h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-7v2h3v2H7v-2h3v-2H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 2v8h16V7z'
+const PLUS = 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z'
 
 export function SourcePanel(p: Props) {
   const { t } = useTranslation()
   const [url, setUrl] = useState('')
-  const [share, setShare] = useState(false)
   const file = useRef<HTMLInputElement>(null)
-  const [open, setOpen] = useState(true)
-  const loaded = p.current ? p.current.kind + (('url' in p.current && p.current.url) || ('embed' in p.current && JSON.stringify(p.current.embed)) || '') : null
-
-  // On a phone, tuck the panel away once a video is loaded so the player has the room.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to a new source from the parent
-    if (loaded && window.matchMedia('(max-width: 999px)').matches) setOpen(false)
-  }, [loaded])
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const value = url.trim()
-    if (value) p.onUrl(value, share)
-  }
-
-  const watchingOffer = p.offer && p.current?.kind === 'watch' && p.offer.kind === 'p2p' && p.current.sharer === p.offer.by
-  const showOffer = p.offer && !p.offeredByMe && !watchingOffer
   const isFileSource = p.current?.kind === 'file'
 
-  return (
-    <section className="source" data-open={open} aria-labelledby="source-title">
-      <div className="source__head">
-        <h2 id="source-title" className="source__title">
-          {t('source.title')}
-        </h2>
-        <button
-          type="button"
-          className="btn source__toggle"
-          aria-expanded={open}
-          aria-controls="source-body"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? t('source.hide') : p.current ? t('source.change') : t('source.choose')}
-        </button>
-      </div>
-      {!open && p.current && (
-        <p className="source__summary">
-          {t('source.watching')} <strong>{p.current.label}</strong>
-        </p>
-      )}
+  const play = (e: FormEvent) => {
+    e.preventDefault()
+    if (url.trim()) p.onPlay(url)
+  }
 
-      <div id="source-body" className="source__body">
-        {showOffer && p.offer && (
-          <div className="source__suggest">
-            <span>
-              {p.offer.kind === 'p2p' ? t('source.offerShare') : t('source.offerLink')}{' '}
-              <strong>{offerLabel(p.offer)}</strong>
-            </span>
-            <button type="button" className="btn btn--primary source__btn" onClick={p.onUseOffer}>
-              {p.offer.kind === 'p2p' ? t('source.watch') : t('source.use')}
-            </button>
+  const fileButton = (
+    <span className="source__chip">
+      <button type="button" className="btn source__chipbtn" onClick={() => file.current?.click()}>
+        <Icon d={FILE} />
+        {t('source.fileShort')}
+      </button>
+      <Hint text={t('source.fileHint')} />
+    </span>
+  )
+
+  return (
+    <section className="source" aria-labelledby="source-title">
+      <h2 id="source-title" className="sr-only">
+        {t('source.title')}
+      </h2>
+
+      {/* One section per tab on a phone; on a computer all of them are on the page. */}
+      <div className="source__section" data-section="add">
+        <form className="source__form" onSubmit={play}>
+          <label className="sr-only" htmlFor="video-url">
+            {t('source.linkLabel')}
+          </label>
+          <div className="source__field">
+            <input
+              id="video-url"
+              className="field"
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder={t('source.linkPlaceholder')}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <Hint text={t('source.linkHint')} />
+          </div>
+          <button type="submit" className="btn btn--primary source__play" disabled={!url.trim()}>
+            {t('source.play')}
+          </button>
+          <button
+            type="button"
+            className="btn source__add"
+            disabled={!url.trim()}
+            aria-label={t('source.addToList')}
+            title={t('source.addToList')}
+            onClick={() => p.onAdd(url) && setUrl('')}
+          >
+            <Icon d={PLUS} />
+          </button>
+        </form>
+
+        {p.notice && (
+          <p className="source__notice" role="alert">
+            {p.notice}
+          </p>
+        )}
+
+        {p.current && !p.sharing && (
+          <div className="source__now">
+            <p className="source__nowtext">
+              <span className="source__nowlabel">{t('source.watching')}</span> <strong>{p.label}</strong>
+            </p>
+            <div className="source__nowactions">
+              {isFileSource && canCaptureElement && (
+                <span className="source__chip">
+                  <button type="button" className="btn btn--primary source__small" onClick={p.onShareFile}>
+                    {t('source.shareFileShort')}
+                  </button>
+                  <Hint text={t('source.shareFileHint')} />
+                </span>
+              )}
+              {p.canLookup && (
+                <span className="source__chip">
+                  <button type="button" className="btn source__small" onClick={p.onLookup}>
+                    {t('source.lookup')}
+                  </button>
+                  <Hint text={t('source.lookupHint')} />
+                </span>
+              )}
+              {p.canReturn && (
+                <button type="button" className="btn source__small" onClick={p.onReturn}>
+                  {t('source.returnToRoom')}
+                </button>
+              )}
+            </div>
           </div>
         )}
+      </div>
+
+      <div className="source__section" data-section="share">
+        <input
+          ref={file}
+          className="sr-only"
+          id="video-file"
+          type="file"
+          accept="video/*,.mkv,.m3u8"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) p.onFile(f)
+            e.target.value = ''
+          }}
+        />
+        <div className="source__alt">
+          {fileButton}
+          {canShareScreen && !p.sharing && (
+            <span className="source__chip">
+              <button type="button" className="btn source__chipbtn" onClick={p.onShareScreen}>
+                <Icon d={TAB} />
+                {t('source.tabShort')}
+              </button>
+              <Hint text={t('source.tabHint') + (isFirefox ? ` ${t('source.tabFirefox')}` : '')} />
+            </span>
+          )}
+        </div>
+        {isFileSource && !p.sharing && canCaptureElement && <p className="source__tip">{t('source.shareFileTip')}</p>}
 
         {p.sharing && (
           <div className="source__live">
@@ -98,9 +184,9 @@ export function SourcePanel(p: Props) {
               <strong>{p.sharing === 'file' ? t('source.sharingFile') : t('source.sharingTab')}</strong>
               <br />
               {t('source.viewers', { count: p.viewers })}
-              {p.sendInfo && p.sharing === 'file' && <><br />{t('source.sending', { info: p.sendInfo })}</>}
+              {p.sendInfo && p.sharing === 'file' && <> · {t('source.sending', { info: p.sendInfo })}</>}
             </p>
-            <button type="button" className="btn source__btn" onClick={p.onStopShare}>
+            <button type="button" className="btn source__small" onClick={p.onStopShare}>
               {t('source.stopShare')}
             </button>
           </div>
@@ -116,104 +202,10 @@ export function SourcePanel(p: Props) {
             onStop={p.onSoundStop}
           />
         )}
+      </div>
 
-        <h3 className="source__sub">{t('source.linkTitle')}</h3>
-        <p className="source__hint">{t('source.linkHint')}</p>
-        <form className="source__row" onSubmit={submit}>
-          <label className="sr-only" htmlFor="video-url">
-            {t('source.linkLabel')}
-          </label>
-          <input
-            id="video-url"
-            className="field"
-            type="url"
-            inputMode="url"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={t('source.linkPlaceholder')}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <button type="submit" className="btn btn--primary source__btn" disabled={!url.trim()}>
-            {t('source.load')}
-          </button>
-        </form>
-        {p.canResolve && (
-          <>
-            <button
-              type="button"
-              className="btn source__file source__resolve"
-              disabled={!url.trim() || p.resolving}
-              onClick={() => p.onResolve(url.trim(), share)}
-            >
-              {p.resolving ? t('source.resolving') : t('source.resolve')}
-            </button>
-            <p className="source__hint source__hint--small">{t('source.resolveHint')}</p>
-          </>
-        )}
-        <label className="source__check">
-          <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
-          {t('source.offerCheck')}
-        </label>
-        {p.offeredByMe && (
-          <p className="source__now">
-            {t('source.offered')}{' '}
-            <button type="button" className="source__link" onClick={p.onStopOffer}>
-              {t('source.stopOffer')}
-            </button>
-          </p>
-        )}
-
-        <h3 className="source__sub">{t('source.fileTitle')}</h3>
-        <input
-          ref={file}
-          className="sr-only"
-          id="video-file"
-          type="file"
-          accept="video/*,.mkv,.m3u8"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) p.onFile(f)
-            e.target.value = ''
-          }}
-        />
-        <button type="button" className="btn source__file" onClick={() => file.current?.click()}>
-          {t('source.openFile')}
-        </button>
-        {isFileSource && !p.sharing && canCaptureElement && (
-          <>
-            <button type="button" className="btn btn--primary source__file source__share" onClick={p.onShareFile}>
-              {t('source.shareFile')}
-            </button>
-            <p className="source__hint source__hint--small">{t('source.shareFileHint')}</p>
-          </>
-        )}
-        {!isFileSource && !p.sharing && (
-          <p className="source__hint source__hint--small">{t('source.fileHint')}</p>
-        )}
-
-        {canShareScreen && !p.sharing && (
-          <>
-            <h3 className="source__sub">{t('source.tabTitle')}</h3>
-            <p className="source__hint">{t('source.tabHint')}</p>
-            {isFirefox && <p className="source__hint source__warn">{t('source.tabFirefox')}</p>}
-            <button type="button" className="btn source__file" onClick={p.onShareScreen}>
-              {t('source.shareTab')}
-            </button>
-          </>
-        )}
-
-        {p.notice && (
-          <p className="source__error" role="alert">
-            {p.notice}
-          </p>
-        )}
-
-        {p.current && (
-          <p className="source__now">
-            {t('source.watching')} <strong>{p.current.label}</strong>
-          </p>
-        )}
+      <div className="source__section" data-section="list">
+        <WatchList items={p.items} current={p.currentItem} onPlay={p.onPlayItem} onRemove={p.onRemoveItem} onMove={p.onMoveItem} />
       </div>
     </section>
   )

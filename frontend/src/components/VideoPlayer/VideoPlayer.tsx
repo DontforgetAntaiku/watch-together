@@ -21,6 +21,8 @@ type Props = {
   onChoice?: (value: string) => void
   /** Called when the picture or sound could not be loaded (the page may then try a fallback). */
   onFailed?: (message: string) => void
+  /** The video played to its end (the watch list moves on). */
+  onEnded?: () => void
   stream?: MediaStream | null
   live?: boolean
   streamDuration?: number | null
@@ -39,7 +41,7 @@ const DOUBLE_TAP_MS = 300
 
 type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
 
-export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, onFailed, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
+export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, onFailed, onEnded, stream, live = false, streamDuration, notice, state, clock, myId, send, onVideo, streamQuality }: Props) {
   const { t } = useTranslation()
   const box = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
@@ -450,6 +452,7 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
           if (mode === 'media') engine?.handlePause()
         }}
         onSeeked={() => mode === 'media' && engine?.handleSeeked()}
+        onEnded={() => mode === 'media' && onEnded?.()}
         onTimeUpdate={(e) => mode === 'media' && scrub === null && setTime(e.currentTarget.currentTime)}
         onDurationChange={(e) => setDuration(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
         onProgress={(e) => {
@@ -508,9 +511,10 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
           setScrub(t)
           poke()
         }}
-        onCommit={() => {
-          if (scrub !== null) {
-            seekTo(scrub)
+        onCommit={(value) => {
+          const target = value ?? scrub
+          if (target !== null) {
+            seekTo(target)
             setScrub(null)
           }
         }}

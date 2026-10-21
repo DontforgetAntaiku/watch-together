@@ -4,8 +4,8 @@ import type { FormEvent } from 'react'
 import { createRoom, errorText, parseCode, roomInfo } from '../../lib/api'
 import { go } from '../../lib/router'
 import { InstallButton } from '../InstallButton/InstallButton'
-import { LangSwitch } from '../LangSwitch/LangSwitch'
-import { Logo } from '../Logo/Logo'
+import { Header } from '../Header/Header'
+import { HeroArt } from '../HeroArt/HeroArt'
 import './Home.css'
 
 export function Home() {
@@ -46,15 +46,10 @@ export function Home() {
 
   return (
     <div className="home">
-      <header className="home__bar">
-        <Logo />
-        <div className="home__tools">
-          <InstallButton />
-          <LangSwitch />
-        </div>
-      </header>
+      <Header tools={<InstallButton />} />
       <main className="home__main">
         <section className="home__hero">
+          <div className="home__copy">
           <p className="home__kicker">{t('home.kicker')}</p>
           <h1 className="home__title">{t('home.titleA')}<span className="home__accent">{t('home.titleB')}</span></h1>
           <p className="home__lead">{t('home.lead')}</p>
@@ -81,11 +76,22 @@ export function Home() {
               </button>
             </form>
           </div>
+          <ul className="home__chips">
+            {['sync', 'sources', 'free'].map((k) => (
+              <li key={k} className="home__chip">
+                {t(`home.chip.${k}`)}
+              </li>
+            ))}
+          </ul>
           {error && (
             <p className="home__error" role="alert">
               {error}
             </p>
           )}
+          </div>
+          <div className="home__art">
+            <HeroArt />
+          </div>
         </section>
 
         <ol className="home__steps">

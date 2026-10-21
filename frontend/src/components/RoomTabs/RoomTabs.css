@@ -1,0 +1,43 @@
+@reference "../../index.css";
+
+/* Only on phones and small tablets; on a computer everything is on one page. */
+.tabs {
+  display: none;
+}
+@media (max-width: 999px) {
+  .tabs {
+    @apply pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .tabs {
+    display: none;
+  }
+}
+.tabs__bar {
+  @apply pointer-events-auto flex w-full gap-1 rounded-full border border-line bg-surface p-1.5;
+  max-width: 26rem;
+  box-shadow: 0 18px 48px -12px rgb(15 22 41 / 0.35);
+}
+.tabs__tab {
+  @apply flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-full border-0 bg-transparent px-1 text-muted;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+.tabs__tab[aria-selected='true'] {
+  @apply bg-accent text-accent-ink;
+}
+.tabs__icon {
+  @apply relative flex;
+}
+.tabs__icon svg {
+  @apply h-6 w-6;
+}
+.tabs__label {
+  @apply text-xs font-semibold leading-none;
+}
+.tabs__badge {
+  @apply absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-pink px-1 text-center text-[0.65rem] font-bold leading-4 text-white;
+}
