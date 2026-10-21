@@ -101,9 +101,11 @@ cd frontend && npm run lint && npm run build  # lint + type-check + production b
 
 ```bash
 cp .env.example .env
-docker compose up -d --build backend              # API on 127.0.0.1:${BACKEND_PORT}
-docker compose run --rm frontend-builder          # static site into ./deploy
+docker compose up -d --build   # starts the API on 127.0.0.1:${BACKEND_PORT} and builds the site into ./deploy
 ```
+
+The `frontend-builder` service runs once, copies the static site into `./deploy` and exits (that is normal).
+Rebuild only the site with `docker compose run --rm --build frontend-builder`.
 
 | Variable | Default | Meaning |
 |---|---|---|

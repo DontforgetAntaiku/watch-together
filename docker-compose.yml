@@ -13,6 +13,7 @@ services:
       CREATE_PER_MINUTE: ${CREATE_PER_MINUTE:-20}
 
   frontend-builder:
+    restart: "no"  # one-shot: builds the site, copies it to FRONTEND_BUILD_OUTPUT, exits
     build:
       context: ./frontend
       args:
@@ -22,4 +23,3 @@ services:
       HOST_GID: ${HOST_GID:-1000}
     volumes:
       - ${FRONTEND_BUILD_OUTPUT:-./deploy}:/out
-    profiles: ["build"]
