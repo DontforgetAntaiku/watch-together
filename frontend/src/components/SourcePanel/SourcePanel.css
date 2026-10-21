@@ -68,6 +68,10 @@
 .source__section + .source__section {
   @apply mt-3;
 }
+/* The section divider is enough: the list adds none of its own. */
+.source__section[data-section='list'] .list {
+  @apply mt-0 border-0 pt-0;
+}
 .source__tip {
   @apply mb-0 mt-3 text-sm text-muted;
 }
