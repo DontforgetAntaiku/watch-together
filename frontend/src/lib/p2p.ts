@@ -147,15 +147,64 @@ type CapturableVideo = HTMLVideoElement & { captureStream?: () => MediaStream; m
 export const canCaptureElement = typeof HTMLMediaElement !== 'undefined' && ('captureStream' in HTMLMediaElement.prototype || 'mozCaptureStream' in HTMLMediaElement.prototype)
 export const canShareScreen = typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 
-/** Capture what a <video> is playing (a local file) as a live stream. */
-export async function captureVideo(video: HTMLVideoElement): Promise<MediaStream> {
+export type Capture = { stream: MediaStream; stop: () => void }
+
+/**
+ * Phones (hardware video decoding) often hand `captureStream()` black frames, so there each frame is copied
+ * through a canvas instead. Override with localStorage `wt-capture` = `canvas` | `direct`.
+ */
+function wantsCanvas(): boolean {
+  try {
+    const forced = localStorage.getItem('wt-capture')
+    if (forced === 'canvas') return true
+    if (forced === 'direct') return false
+  } catch {
+    /* storage unavailable */
+  }
+  return navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
+}
+
+/** Capture what a <video> is playing (a local file) as a live stream. Call `stop` when the share ends. */
+export async function captureVideo(video: HTMLVideoElement): Promise<Capture> {
   const el = video as CapturableVideo
   const capture = el.captureStream ?? el.mozCaptureStream
   if (!capture) throw new Error(i18n.t('errors.noCapture'))
-  for (let i = 0; i < 40; i++) {
+  let direct: MediaStream | null = null
+  for (let i = 0; i < 40 && !direct; i++) {
     const stream = capture.call(el)
-    if (stream.getVideoTracks().length > 0) return stream
-    await new Promise((r) => setTimeout(r, 100))
+    if (stream.getVideoTracks().length > 0) direct = stream
+    else await new Promise((r) => setTimeout(r, 100))
   }
-  throw new Error(i18n.t('errors.noPicture'))
+  if (!direct) throw new Error(i18n.t('errors.noPicture'))
+  if (!wantsCanvas()) return { stream: direct, stop: () => {} }
+
+  const scale = Math.min(1, 1280 / (video.videoWidth || 1280))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(2, Math.round((video.videoWidth || 1280) * scale))
+  canvas.height = Math.max(2, Math.round((video.videoHeight || 720) * scale))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error(i18n.t('errors.noCapture'))
+  let alive = true
+  const draw = () => {
+    if (!alive) return
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    } catch {
+      /* frame not ready yet */
+    }
+    if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(draw)
+    else requestAnimationFrame(draw)
+  }
+  draw()
+  const stream = canvas.captureStream(30)
+  direct.getAudioTracks().forEach((track) => stream.addTrack(track))
+  return {
+    stream,
+    stop: () => {
+      alive = false
+      stream.getTracks().forEach((track) => track.stop())
+    },
+  }
 }
+
+export const isFirefox = typeof navigator !== 'undefined' && /Firefox\//.test(navigator.userAgent)

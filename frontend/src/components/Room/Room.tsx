@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RoomSource } from '../../lib/api'
 import { parseEmbed } from '../../lib/embed'
-import { Sharer, captureVideo } from '../../lib/p2p'
+import { Sharer, captureVideo, isFirefox } from '../../lib/p2p'
+import type { Capture } from '../../lib/p2p'
 import { go } from '../../lib/router'
 import { fromOffer, hostLabel } from '../../lib/source'
 import type { Source } from '../../lib/source'
@@ -26,6 +27,7 @@ export function Room({ code }: { code: string }) {
   const objectUrl = useRef<string | null>(null)
   const video = useRef<HTMLVideoElement | null>(null)
   const screen = useRef<MediaStream | null>(null)
+  const fileCapture = useRef<Promise<Capture> | null>(null)
   const sharingRef = useRef<Sharing>(null)
   const sharer = useRef<Sharer | null>(null)
   const sendRef = useRef(send)
@@ -44,6 +46,8 @@ export function Room({ code }: { code: string }) {
       sharer.current?.closeAll()
       screen.current?.getTracks().forEach((t) => t.stop())
       screen.current = null
+      void fileCapture.current?.then((c) => c.stop(), () => {})
+      fileCapture.current = null
       if (sharingRef.current && tellRoom) sendRef.current({ t: 'source', kind: null })
       setShare(null)
       setViewers(0)
@@ -66,6 +70,7 @@ export function Room({ code }: { code: string }) {
     () => () => {
       sharer.current?.closeAll()
       screen.current?.getTracks().forEach((t) => t.stop())
+      void fileCapture.current?.then((c) => c.stop(), () => {})
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current)
     },
     [],
@@ -76,7 +81,7 @@ export function Room({ code }: { code: string }) {
       sharer.current = new Sharer(
         async () => {
           if (sharingRef.current === 'screen' && screen.current) return screen.current
-          if (sharingRef.current === 'file' && video.current) return captureVideo(video.current)
+          if (sharingRef.current === 'file' && fileCapture.current) return (await fileCapture.current).stream
           throw new Error('nothing is being shared')
         },
         (msg) => sendRef.current(msg),
@@ -140,9 +145,20 @@ export function Room({ code }: { code: string }) {
     replaceSource({ kind: 'file', url: URL.createObjectURL(file), label: file.name })
   }
 
-  const onShareFile = () => {
+  const onShareFile = async () => {
     const v = video.current
     if (source?.kind !== 'file' || !v) return
+    setNotice(null)
+    // Capture once for everybody, and find out now (not when the first friend connects) whether this browser can do it.
+    const captured = captureVideo(v)
+    fileCapture.current = captured
+    try {
+      await captured
+    } catch (err) {
+      fileCapture.current = null
+      setNotice(err instanceof Error ? err.message : t('errors.noCapture'))
+      return
+    }
     ensureSharer()
     setShare('file')
     send({ t: 'source', kind: 'p2p', name: source.label.slice(0, 120), dur: Number.isFinite(v.duration) ? v.duration : null })
@@ -165,7 +181,7 @@ export function Room({ code }: { code: string }) {
     setShare('screen')
     send({ t: 'source', kind: 'p2p', name: 'tab', live: true })
     if (stream.getAudioTracks().length === 0) {
-      setNotice(t('room.noAudio'))
+      setNotice(isFirefox ? t('room.noAudioFirefox') : t('room.noAudio'))
     }
   }
 

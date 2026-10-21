@@ -18,8 +18,12 @@
     "step3Title": "Press play",
     "step3Text": "Play, pause and seek are shared. The video itself never goes through our server."
   },
-  "footer": { "credit": "Free and open source. Built by" },
-  "lang": { "label": "Language" },
+  "footer": {
+    "credit": "Free and open source. Built by"
+  },
+  "lang": {
+    "label": "Language"
+  },
   "room": {
     "people_one": "{{count}} person here",
     "people_other": "{{count}} people here",
@@ -32,7 +36,8 @@
     "noAudio": "No sound is being shared. Choose a browser tab and tick \"Also share tab audio\" in the picker.",
     "tabName": "Tab or window",
     "joinFailed": "Could not join this room. It may be full.",
-    "reset": "Connection was reset. Reconnecting…"
+    "reset": "Connection was reset. Reconnecting…",
+    "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Friends will see the picture without sound. For sound use Chrome or Edge, or share the video file instead."
   },
   "code": {
     "room": "Room",
@@ -79,7 +84,8 @@
     "aYoutube": "a YouTube video",
     "aVimeo": "a Vimeo video",
     "youtube": "YouTube video",
-    "vimeo": "Vimeo video"
+    "vimeo": "Vimeo video",
+    "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file."
   },
   "player": {
     "emptyTitle": "No video yet",

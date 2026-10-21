@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RoomSource } from '../../lib/api'
-import { canCaptureElement, canShareScreen } from '../../lib/p2p'
+import { canCaptureElement, canShareScreen, isFirefox } from '../../lib/p2p'
 import { offerLabel } from '../../lib/source'
 import type { Source } from '../../lib/source'
 import './SourcePanel.css'
@@ -161,6 +161,7 @@ export function SourcePanel(p: Props) {
           <>
             <h3 className="source__sub">{t('source.tabTitle')}</h3>
             <p className="source__hint">{t('source.tabHint')}</p>
+            {isFirefox && <p className="source__hint source__warn">{t('source.tabFirefox')}</p>}
             <button type="button" className="btn source__file" onClick={p.onShareScreen}>
               {t('source.shareTab')}
             </button>
