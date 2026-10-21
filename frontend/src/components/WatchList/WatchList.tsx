@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { QueueItem } from '../../lib/api'
-import { hostLabel, titleFromUrl } from '../../lib/labels'
+import { parseEmbed } from '../../lib/embed'
+import { embedLabel, hostLabel, titleFromUrl } from '../../lib/labels'
 import './WatchList.css'
 
 type Props = {
@@ -37,7 +38,9 @@ export function WatchList({ items, current, onPlay, onRemove, onMove }: Props) {
         <ol className="list__items">
           {items.map((item, i) => {
             const playing = item.id === current
-            const name = item.title || titleFromUrl(item.url) || hostLabel(item.url)
+            // Until the real title is known: the platform's name, then the file name, then the site.
+            const embed = parseEmbed(item.url)
+            const name = item.title || (embed ? embedLabel(embed) : (titleFromUrl(item.url) ?? hostLabel(item.url)))
             return (
               <li key={item.id} className="list__item" data-playing={playing}>
                 <button type="button" className="list__play" onClick={() => onPlay(item.id)} aria-label={t('list.play', { name })} aria-current={playing || undefined}>

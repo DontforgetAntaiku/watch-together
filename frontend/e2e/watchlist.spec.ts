@@ -24,13 +24,21 @@ test.describe('watch list', () => {
   })
 
   test('the room plays the next video by itself when one ends', async ({ browser }) => {
-    const { pages } = await roomWithViewers(browser, 2, 'short1.webm')
-    await add(pages[0], media('short2.webm'))
-    for (const p of pages) await expect.poll(async () => (await seen(p))?.src, { timeout: 30_000 }).toBe('short2.webm')
-    await expectSettled(pages, { playing: true })
+    // The list is set up first and only then started, so the short first video cannot end before the second is queued.
+    const a = await newPage(browser)
+    const code = await createRoom(a)
+    const b = await newPage(browser)
+    await joinRoom(b, code)
+    await add(a, media('short1.webm'))
+    await add(a, media('short2.webm'))
+    await expect.poll(() => names(b)).toEqual(['short1', 'short2'])
+    await a.locator('.list__item >> nth=0 >> .list__play').click()
+    for (const p of [a, b]) await expect.poll(async () => (await seen(p))?.src, { timeout: 30_000 }).toBe('short1.webm')
+    for (const p of [a, b]) await expect.poll(async () => (await seen(p))?.src, { timeout: 30_000 }).toBe('short2.webm')
+    await expectSettled([a, b], { playing: true })
     // the last one simply ends: nothing is skipped, nobody is stuck
-    await expect.poll(async () => (await seen(pages[1]))!.ended, { timeout: 30_000 }).toBe(true)
-    expect((await seen(pages[0]))!.src).toBe('short2.webm')
+    await expect.poll(async () => (await seen(b))!.ended, { timeout: 30_000 }).toBe(true)
+    expect((await seen(a))!.src).toBe('short2.webm')
   })
 
   test('clicking an item plays it for everybody from the start', async ({ browser }) => {
@@ -108,4 +116,59 @@ test.describe('watch list', () => {
     await playLink(pages[1], media('short2.webm'))
     for (const p of pages) await expect.poll(async () => (await seen(p))?.src, { timeout: 20_000 }).toBe('short2.webm')
   })
+
+  test('a link nobody has played gets its real title, and everybody sees it', async ({ browser }) => {
+    const { pages } = await roomWithViewers(browser, 2, 'clip.webm')
+    await pages[0].context().route('https://www.youtube.com/oembed**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ title: 'Big Buck Bunny' }) }),
+    )
+    await add(pages[0], 'https://youtu.be/aqz-KE-bpKQ')
+    // before the answer it is named after the platform, never just "youtube.com"
+    await expect.poll(() => names(pages[1])).toHaveLength(2)
+    for (const p of pages) await expect.poll(() => names(p), { timeout: 15_000 }).toEqual(['clip', 'Big Buck Bunny'])
+    await expect(pages[1].locator('.list__host').nth(1)).toHaveText('youtu.be')
+  })
+
+  test('a title that cannot be fetched leaves a readable name, not a bare address', async ({ browser }) => {
+    const { pages } = await roomWithViewers(browser, 1, 'clip.webm')
+    await pages[0].context().route('https://www.youtube.com/oembed**', (route) => route.abort())
+    await add(pages[0], 'https://youtu.be/aqz-KE-bpKQ')
+    await expect.poll(() => names(pages[0])).toEqual(['clip', 'YouTube video'])
+  })
+
+  for (const [label, size] of [['a computer', { width: 1280, height: 800 }], ['a small phone', { width: 320, height: 640 }]] as const) {
+    test(`very long titles wrap and never push the buttons out of the row (${label})`, async ({ browser }) => {
+      const long = 'ВОТ ЧТО БУДЕТ ЕСЛИ УБРАТЬ ПОРЯДОК ИЗ ВСЕЛЕННОЙ И ПОСМОТРЕТЬ НА ЭТО ВСЕ ВМЕСТЕ С ДРУЗЬЯМИ ' + 'LONGWORDWITHOUTANYSPACESINIT'.repeat(3)
+      const a = await newPage(browser, { viewport: size, isMobile: size.width < 500, hasTouch: size.width < 500 })
+      await a.context().route('https://www.youtube.com/oembed**', (route) =>
+        route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ title: long }) }),
+      )
+      await createRoom(a)
+      await playLink(a, media('clip.webm'))
+      await add(a, 'https://youtu.be/aqz-KE-bpKQ')
+      await add(a, 'https://youtu.be/dQw4w9WgXcQ')
+      if (size.width < 500) await a.locator('.tabs__tab[data-tab="list"]').click()
+      await expect.poll(async () => (await names(a)).filter((n) => n.length > 100).length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1)
+      const fits = await a.evaluate(() => {
+        const list = document.querySelector('.list__items') as HTMLElement
+        const box = list.getBoundingClientRect()
+        const problems: string[] = []
+        if (list.scrollWidth > list.clientWidth + 1) problems.push(`the list scrolls sideways: ${list.scrollWidth} > ${list.clientWidth}`)
+        for (const item of document.querySelectorAll('.list__item')) {
+          const r = item.getBoundingClientRect()
+          const last = item.querySelector('.list__icon:last-of-type')?.getBoundingClientRect()
+          if (r.right > box.right + 1) problems.push('a row is wider than the list')
+          if (!last || last.right > r.right + 1 || last.left < r.left) problems.push('the remove button is outside its row')
+          const name = item.querySelector('.list__name') as HTMLElement
+          if (name.getBoundingClientRect().height > 60) problems.push(`a title is more than two lines (${name.getBoundingClientRect().height}px)`)
+        }
+        if (document.documentElement.scrollWidth > innerWidth) problems.push('the page scrolls sideways')
+        return problems
+      })
+      expect(fits).toEqual([])
+      // and the button really is clickable: it removes the entry
+      await a.locator('.list__item >> nth=1 >> button[aria-label^="Remove"]').click()
+      await expect.poll(async () => (await names(a)).length).toBe(2)
+    })
+  }
 })

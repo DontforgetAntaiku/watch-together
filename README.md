@@ -367,6 +367,7 @@ The worker is registered in production builds only, so `npm run dev` never cache
 No analytics, no cookies, no accounts, no personal data on the server. Files you open are read locally and never uploaded.
 Things worth knowing:
 
+- To name a link in the watch list, the person who added it asks YouTube, Vimeo, Streamable or Dailymotion for its title (a public request from their browser, with no referrer); the title is then shared through the room. Twitch has no such request, so a Twitch video is named when somebody plays it.
 - Using a **YouTube**, **Vimeo**, **Twitch** or **Streamable** link loads their player, which talks to them (YouTube through its privacy-enhanced domain, Vimeo with tracking off). The page sends no referrer, except that Streamable's player gets this site's address, which it needs to answer.
 - **Peer-to-peer sharing** asks a STUN server for your public address, and the people in the room who watch your share connect directly to your IP address.
   Only share with people you trust.

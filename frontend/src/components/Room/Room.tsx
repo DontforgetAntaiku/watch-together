@@ -7,6 +7,7 @@ import { fromResolved, lookupFailed, pickQuality, stepDown, toResolving } from '
 import type { PageSource } from '../../lib/page'
 import { go } from '../../lib/router'
 import { fromRoom, labelFor } from '../../lib/source'
+import { fetchTitle } from '../../lib/titles'
 import type { Source } from '../../lib/source'
 import { normalizeUrl } from '../../lib/url'
 import { useRoom } from '../../lib/useRoom'
@@ -104,6 +105,16 @@ export function Room({ code }: { code: string }) {
       setNotice(t('room.shareEnded'))
     }
   }, [state, source, t])
+
+  // A link nobody has played has no name yet: whoever added it asks the platform once and tells the room.
+  const asked = useRef(new Set<string>())
+  useEffect(() => {
+    for (const item of state?.queue ?? []) {
+      if (item.title || item.by !== myId() || asked.current.has(item.id)) continue
+      asked.current.add(item.id)
+      void fetchTitle(item.url).then((title) => title && send({ t: 'queue_title', item: item.id, title }))
+    }
+  }, [state?.queue, myId, send])
 
   const onVideo = useCallback((el: HTMLVideoElement | null) => {
     video.current = el
