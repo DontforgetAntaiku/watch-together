@@ -38,7 +38,9 @@
     "joinFailed": "Could not join this room. It may be full.",
     "reset": "Connection was reset. Reconnecting…",
     "noAudioFirefox": "Firefox cannot share sound from a tab or window (on Linux with Wayland it never can). Friends will see the picture without sound. For sound use Chrome or Edge, or share the video file instead.",
-    "takenOver": "Someone else started sharing, so your share was stopped. Now watching theirs."
+    "takenOver": "Someone else started sharing, so your share was stopped. Now watching theirs.",
+    "noFrames": "No picture is leaving this device even after switching the sharing method. This phone or browser cannot share video files. Share from a computer, or send the file.",
+    "switchedCapture": "No picture was going out, so the sharing method was switched automatically."
   },
   "code": {
     "room": "Room",
@@ -86,7 +88,8 @@
     "aVimeo": "a Vimeo video",
     "youtube": "YouTube video",
     "vimeo": "Vimeo video",
-    "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file."
+    "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file.",
+    "sending": "Sending {{info}}"
   },
   "player": {
     "emptyTitle": "No video yet",

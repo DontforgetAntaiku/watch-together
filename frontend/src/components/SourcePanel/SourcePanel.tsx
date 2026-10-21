@@ -13,6 +13,7 @@ type Props = {
   offeredByMe: boolean
   sharing: 'file' | 'screen' | null
   viewers: number
+  sendInfo: string | null
   notice: string | null
   onUrl: (url: string, share: boolean) => void
   onFile: (file: File) => void
@@ -88,6 +89,7 @@ export function SourcePanel(p: Props) {
               <strong>{p.sharing === 'file' ? t('source.sharingFile') : t('source.sharingTab')}</strong>
               <br />
               {t('source.viewers', { count: p.viewers })}
+              {p.sendInfo && p.sharing === 'file' && <><br />{t('source.sending', { info: p.sendInfo })}</>}
             </p>
             <button type="button" className="btn source__btn" onClick={p.onStopShare}>
               {t('source.stopShare')}

@@ -94,6 +94,36 @@ export class Sharer {
     }
   }
 
+  /** What this sharer is really sending (frames are the proof that a capture method works on this device). */
+  async videoStats(): Promise<{ frames: number; width: number; height: number; fps: number } | null> {
+    let frames = 0
+    let width = 0
+    let height = 0
+    let fps = 0
+    let peers = 0
+    for (const pc of this.peers.values()) {
+      if (pc.connectionState !== 'connected') continue
+      peers++
+      const report = await pc.getStats()
+      report.forEach((s) => {
+        if (s.type !== 'outbound-rtp' || s.kind !== 'video') return
+        frames += s.framesEncoded ?? 0
+        width = Math.max(width, s.frameWidth ?? 0)
+        height = Math.max(height, s.frameHeight ?? 0)
+        fps = Math.max(fps, s.framesPerSecond ?? 0)
+      })
+    }
+    return peers ? { frames, width, height, fps } : null
+  }
+
+  /** Swap the picture of every running connection without renegotiating. */
+  async replaceVideoTrack(track: MediaStreamTrack) {
+    for (const pc of this.peers.values()) {
+      const sender = pc.getSenders().find((x) => x.track?.kind === 'video')
+      await sender?.replaceTrack(track).catch(() => {})
+    }
+  }
+
   private connected() {
     return [...this.peers.values()].filter((pc) => pc.connectionState === 'connected').length
   }
@@ -182,7 +212,7 @@ type CapturableVideo = HTMLVideoElement & { captureStream?: () => MediaStream; m
 export const canCaptureElement = typeof HTMLMediaElement !== 'undefined' && ('captureStream' in HTMLMediaElement.prototype || 'mozCaptureStream' in HTMLMediaElement.prototype)
 export const canShareScreen = typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 
-export type Capture = { stream: MediaStream; stop: () => void }
+export type Capture = { stream: MediaStream; stop: () => void; mode: 'direct' | 'canvas' }
 
 /**
  * Phones (hardware video decoding) often hand `captureStream()` black frames, so there each frame is copied
@@ -196,11 +226,11 @@ function wantsCanvas(): boolean {
   } catch {
     /* storage unavailable */
   }
-  return navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
+  return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
 }
 
 /** Capture what a <video> is playing (a local file) as a live stream. Call `stop` when the share ends. */
-export async function captureVideo(video: HTMLVideoElement): Promise<Capture> {
+export async function captureVideo(video: HTMLVideoElement, force?: 'direct' | 'canvas'): Promise<Capture> {
   const el = video as CapturableVideo
   const capture = el.captureStream ?? el.mozCaptureStream
   if (!capture) throw new Error(i18n.t('errors.noCapture'))
@@ -211,7 +241,7 @@ export async function captureVideo(video: HTMLVideoElement): Promise<Capture> {
     else await new Promise((r) => setTimeout(r, 100))
   }
   if (!direct) throw new Error(i18n.t('errors.noPicture'))
-  if (!wantsCanvas()) return { stream: direct, stop: () => {} }
+  if ((force ?? (wantsCanvas() ? 'canvas' : 'direct')) === 'direct') return { stream: direct, stop: () => {}, mode: 'direct' }
 
   const scale = Math.min(1, 1280 / (video.videoWidth || 1280))
   const canvas = document.createElement('canvas')
@@ -235,6 +265,7 @@ export async function captureVideo(video: HTMLVideoElement): Promise<Capture> {
   direct.getAudioTracks().forEach((track) => stream.addTrack(track))
   return {
     stream,
+    mode: 'canvas',
     stop: () => {
       alive = false
       stream.getTracks().forEach((track) => track.stop())

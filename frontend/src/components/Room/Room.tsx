@@ -31,6 +31,8 @@ export function Room({ code }: { code: string }) {
   const sharingRef = useRef<Sharing>(null)
   const sharer = useRef<Sharer | null>(null)
   const sendRef = useRef(send)
+  const captureMode = useRef<'direct' | 'canvas'>('direct')
+  const [sendInfo, setSendInfo] = useState<string | null>(null)
 
   useEffect(() => {
     sendRef.current = send
@@ -48,6 +50,7 @@ export function Room({ code }: { code: string }) {
       screen.current = null
       void fileCapture.current?.then((c) => c.stop(), () => {})
       fileCapture.current = null
+      setSendInfo(null)
       if (sharingRef.current && tellRoom) sendRef.current({ t: 'source', kind: null })
       setShare(null)
       setViewers(0)
@@ -103,6 +106,51 @@ export function Room({ code }: { code: string }) {
       }),
     [onSignal, ensureSharer],
   )
+
+  // Prove the picture really leaves this device. If a capture method yields no frames while the video plays
+  // (phones differ), switch to the other method once, and say so if that does not help either.
+  useEffect(() => {
+    if (sharing !== 'file') return
+    let last = -1
+    let stalls = 0
+    let switched = false
+    let busy = false
+    const timer = window.setInterval(async () => {
+      const v = video.current
+      if (!v || busy) return
+      busy = true
+      try {
+        const st = await sharer.current?.videoStats()
+        if (!st) return setSendInfo(null)
+        setSendInfo(st.width ? `${st.width}×${st.height}${st.fps ? ` · ${Math.round(st.fps)} fps` : ''}` : null)
+        if (v.paused) {
+          last = st.frames
+          stalls = 0
+          return
+        }
+        stalls = st.frames <= last ? stalls + 1 : 0
+        last = st.frames
+        if (stalls < 3) return
+        stalls = 0
+        if (switched) return void setNotice(t('room.noFrames'))
+        switched = true
+        const old = fileCapture.current
+        const other = captureMode.current === 'direct' ? 'canvas' : 'direct'
+        const next = captureVideo(v, other)
+        const made = await next
+        fileCapture.current = next
+        captureMode.current = made.mode
+        await sharer.current?.replaceVideoTrack(made.stream.getVideoTracks()[0])
+        void old?.then((c) => c.stop(), () => {})
+        setNotice(t('room.switchedCapture'))
+      } catch {
+        /* try again on the next tick */
+      } finally {
+        busy = false
+      }
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [sharing, t])
 
   // The room forgot our share (e.g. after a reconnect gave us a new identity): announce it again.
   useEffect(() => {
@@ -173,7 +221,7 @@ export function Room({ code }: { code: string }) {
     const captured = captureVideo(v)
     fileCapture.current = captured
     try {
-      await captured
+      captureMode.current = (await captured).mode
     } catch (err) {
       fileCapture.current = null
       setNotice(err instanceof Error ? err.message : t('errors.noCapture'))
@@ -259,6 +307,7 @@ export function Room({ code }: { code: string }) {
             offeredByMe={offeredByMe}
             sharing={sharing}
             viewers={viewers}
+            sendInfo={sendInfo}
             notice={notice}
             onUrl={onUrl}
             onFile={onFile}
