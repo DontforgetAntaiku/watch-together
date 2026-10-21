@@ -1,10 +1,12 @@
 import asyncio
+import logging
 from collections import defaultdict, deque
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
+from app import resolver as resolver_tool
 from app.resolver import Resolver
 from app.rooms import RoomManager
 from app.routers import routers
@@ -37,6 +39,12 @@ def create_app() -> FastAPI:
                 await task
 
     docs = {} if settings.debug else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    tool_found = resolver_tool.find_binary() is not None
+    if settings.resolver and not tool_found:
+        logging.getLogger("uvicorn.error").warning(
+            "RESOLVER_ENABLED is true but yt-dlp was not found: the page-link lookup stays off. "
+            "With Docker run `docker compose up -d --build`; otherwise `pip install yt-dlp`."
+        )
     app = FastAPI(title="watch-together", debug=False, lifespan=lifespan, **docs)
     app.state.settings = settings
     app.state.rooms = manager
@@ -50,7 +58,7 @@ def create_app() -> FastAPI:
             proxy=settings.resolver_proxy,
             cache_ttl=settings.resolver_cache_ttl,
         )
-        if settings.resolver
+        if settings.resolver and tool_found
         else None
     )
     for router in routers:

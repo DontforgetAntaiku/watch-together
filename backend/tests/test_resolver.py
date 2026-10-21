@@ -181,7 +181,8 @@ async def test_tool_missing_is_reported(monkeypatch):
 
 # ---- HTTP -----------------------------------------------------------------------------------------------------------
 
-async def client_for(monkeypatch, **env):
+async def client_for(monkeypatch, tool=True, **env):
+    monkeypatch.setattr(r, "find_binary", lambda: ["yt-dlp"] if tool else None)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     app = create_app()
@@ -223,3 +224,14 @@ async def test_real_streamable_and_dailymotion():
     assert got.protocol == "https" and ".mp4" in got.url
     got = await res.resolve("https://www.dailymotion.com/video/x8wbmts")
     assert got.protocol == "hls" and got.height and got.height >= 720
+
+
+async def test_enabled_but_tool_missing_stays_off_and_says_so(monkeypatch, caplog):
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="uvicorn.error"):
+        app, c = await client_for(monkeypatch, tool=False, RESOLVER_ENABLED="true")
+    async with c:
+        assert (await c.get("/api/config")).json() == {"resolver": False}
+        assert (await c.post("/api/resolve", json={"url": "https://site.test/v"})).status_code == 404
+    assert "yt-dlp was not found" in caplog.text and "--build" in caplog.text

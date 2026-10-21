@@ -303,7 +303,8 @@ What it does not help with, and why:
 - **Logins, private videos, sites yt-dlp has no extractor for** are reported with a clear message.
 - Links **expire**, often within hours.
 
-Turn it on in `.env` (`RESOLVER_ENABLED=true`, then `docker compose up -d --build`; the image installs yt-dlp only in that case, and it should be rebuilt with `--no-cache` now and then because sites change).
+Turn it on in `.env` with `RESOLVER_ENABLED=true`, then restart the backend (`docker compose up -d --build`). The image always contains yt-dlp; the feature stays off until that flag is set.
+Sites change often, so rebuild with `--no-cache` now and then to get a current yt-dlp. If the flag is on but yt-dlp is missing (an old image), the button stays hidden and the backend log says so.
 The settings are listed in `.env.example`. Please read this before enabling it:
 
 - The server fetches addresses chosen by visitors, so it is a request-forgery target. Built in: only `http(s)` on ports 80 and 443, no credentials, no `localhost` / `.local` / `.internal` names, every address a name points to must be public, yt-dlp runs with an
