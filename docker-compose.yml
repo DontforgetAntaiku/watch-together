@@ -1,6 +1,9 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        WITH_RESOLVER: ${RESOLVER_ENABLED:-false}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
@@ -11,6 +14,13 @@ services:
       MAX_MEMBERS: ${MAX_MEMBERS:-30}
       EMPTY_ROOM_TTL: ${EMPTY_ROOM_TTL:-1800}
       CREATE_PER_MINUTE: ${CREATE_PER_MINUTE:-20}
+      RESOLVER_ENABLED: ${RESOLVER_ENABLED:-false}
+      RESOLVER_ALLOWED_HOSTS: ${RESOLVER_ALLOWED_HOSTS:-}
+      RESOLVER_TIMEOUT: ${RESOLVER_TIMEOUT:-25}
+      RESOLVER_MAX_CONCURRENT: ${RESOLVER_MAX_CONCURRENT:-2}
+      RESOLVER_PER_MINUTE: ${RESOLVER_PER_MINUTE:-6}
+      RESOLVER_PROXY: ${RESOLVER_PROXY:-}
+      RESOLVER_CACHE_TTL: ${RESOLVER_CACHE_TTL:-600}
 
   frontend-builder:
     restart: "no"  # one-shot: builds the site, copies it to FRONTEND_BUILD_OUTPUT, exits

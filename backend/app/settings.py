@@ -19,6 +19,13 @@ class Settings:
     create_per_minute: int
     msg_per_second: float
     msg_burst: int
+    resolver: bool
+    resolver_hosts: tuple[str, ...]
+    resolver_timeout: float
+    resolver_concurrent: int
+    resolver_per_minute: int
+    resolver_proxy: str
+    resolver_cache_ttl: float
 
 
 def load_settings() -> Settings:
@@ -32,4 +39,11 @@ def load_settings() -> Settings:
         create_per_minute=int(os.getenv("CREATE_PER_MINUTE", "20")),
         msg_per_second=float(os.getenv("MSG_PER_SECOND", "10")),
         msg_burst=int(os.getenv("MSG_BURST", "30")),
+        resolver=_flag("RESOLVER_ENABLED", False),
+        resolver_hosts=tuple(h.strip().lower().lstrip(".") for h in os.getenv("RESOLVER_ALLOWED_HOSTS", "").split(",") if h.strip()),
+        resolver_timeout=float(os.getenv("RESOLVER_TIMEOUT", "25")),
+        resolver_concurrent=int(os.getenv("RESOLVER_MAX_CONCURRENT", "2")),
+        resolver_per_minute=int(os.getenv("RESOLVER_PER_MINUTE", "6")),
+        resolver_proxy=os.getenv("RESOLVER_PROXY", "").strip(),
+        resolver_cache_ttl=float(os.getenv("RESOLVER_CACHE_TTL", "600")),
     )

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
+from app.resolver import Resolver
 from app.rooms import RoomManager
 from app.routers import routers
 from app.settings import load_settings
@@ -40,6 +41,18 @@ def create_app() -> FastAPI:
     app.state.settings = settings
     app.state.rooms = manager
     app.state.create_hits = defaultdict(deque)
+    app.state.resolve_hits = defaultdict(deque)
+    app.state.resolver = (
+        Resolver(
+            hosts=settings.resolver_hosts,
+            timeout=settings.resolver_timeout,
+            concurrent=settings.resolver_concurrent,
+            proxy=settings.resolver_proxy,
+            cache_ttl=settings.resolver_cache_ttl,
+        )
+        if settings.resolver
+        else None
+    )
     for router in routers:
         app.include_router(router, prefix="/api")
     return app

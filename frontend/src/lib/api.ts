@@ -64,6 +64,19 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T)
 }
 
+export type Config = { resolver: boolean }
+export type Resolved = { title: string; url: string; protocol: 'https' | 'hls'; height: number | null; duration: number | null; needsHeaders: boolean }
+
+let configPromise: Promise<Config> | null = null
+/** What this server offers (cached; a server without the extra features answers with all of them off). */
+export function getConfig(): Promise<Config> {
+  configPromise ??= call<Config>('/config').catch(() => ({ resolver: false }))
+  return configPromise
+}
+
+export const resolvePage = (url: string) =>
+  call<Resolved>('/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+
 export const createRoom = () => call<{ code: string }>('/rooms', { method: 'POST' })
 export const roomInfo = (code: string) => call<{ code: string; n: number }>(`/rooms/${code}`)
 export const serverTime = () => call<{ t: number }>('/time', { cache: 'no-store' })
@@ -84,7 +97,7 @@ export function parseCode(raw: string): string | null {
 
 export function errorText(err: unknown): string {
   if (err instanceof ApiError) {
-    const known = ['offline', 'no_room', 'full', 'busy', 'slow_down']
+    const known = ['offline', 'no_room', 'full', 'busy', 'slow_down', 'bad_url', 'blocked_host', 'unsupported', 'login', 'no_single_stream', 'unavailable', 'refused', 'failed', 'timeout', 'unavailable_tool']
     if (known.includes(err.message)) return i18n.t(`errors.${err.message}`)
   }
   return i18n.t('errors.generic')

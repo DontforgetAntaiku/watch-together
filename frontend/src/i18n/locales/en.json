@@ -41,7 +41,8 @@
     "takenOver": "Someone else started sharing, so your share was stopped. Now watching theirs.",
     "noFrames": "No picture is leaving this device even after switching the sharing method. This phone or browser cannot share video files. Share from a computer, or send the file.",
     "switchedCapture": "No picture was going out, so the sharing method was switched automatically.",
-    "differentCuts": "Your copies of the video differ in length ({{lo}} to {{hi}}), so they are probably different cuts. Everyone should open the same file or link, or picture and sound will not line up."
+    "differentCuts": "Your copies of the video differ in length ({{lo}} to {{hi}}), so they are probably different cuts. Everyone should open the same file or link, or picture and sound will not line up.",
+    "resolvedHeaders": "Found it, but this site expects special headers a browser cannot send, so it will probably not play. If it fails, share the tab or the file instead."
   },
   "code": {
     "room": "Room",
@@ -86,7 +87,10 @@
     "tabHint": "For sites that only play on their own page: open the video in another tab and share that tab with sound.",
     "shareTab": "Share a tab or window",
     "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file.",
-    "sending": "Sending {{info}}"
+    "sending": "Sending {{info}}",
+    "resolve": "Resolve a page link",
+    "resolving": "Looking it up…",
+    "resolveHint": "Asks this server (it runs yt-dlp) to find the video behind a page. It only works for some sites, and the result may refuse to play for you or your friends: many hosts tie the link to the server's address or to their own site."
   },
   "player": {
     "emptyTitle": "No video yet",
@@ -146,7 +150,17 @@
     "noPicture": "The video has no picture to share yet. Press play once and try again.",
     "noPictureViewer": "Connected, but no picture is arriving. The sharer's device may not be able to share this file (phones often cannot). Ask them to share from a computer, or send the file.",
     "embedBlocked": "This video did not load. It may be private, removed, or not allowed to be embedded on other sites.",
-    "twitchLoad": "Twitch could not be loaded (blocked or offline)."
+    "twitchLoad": "Twitch could not be loaded (blocked or offline).",
+    "bad_url": "That does not look like a usable page address.",
+    "blocked_host": "This server does not look up that address.",
+    "unsupported": "No extractor knows this site, so the video could not be found.",
+    "login": "This video needs a login or is private, so it cannot be looked up.",
+    "no_single_stream": "The site only offers separate picture and sound streams, which a browser cannot play from one address.",
+    "unavailable": "The video is unavailable or was removed.",
+    "refused": "The site refused this server's request.",
+    "failed": "The lookup failed. Try again later or share the tab or the file.",
+    "timeout": "The lookup took too long.",
+    "unavailable_tool": "The lookup tool is not installed on this server."
   },
   "sound": {
     "title": "Add sound from a device",

@@ -145,6 +145,7 @@ Rebuild only the site with `docker compose run --rm --build frontend-builder`.
 | `BACKEND_DEBUG` | `True` | `False` disables `/docs`, `/redoc` and `/openapi.json` |
 | `FRONTEND_DEBUG` | `True` | `False` builds the frontend for production |
 | `FRONTEND_BUILD_OUTPUT` | `./deploy` | Host folder that receives the built site |
+| `RESOLVER_ENABLED` | `false` | Switches the yt-dlp page-link lookup on (see above); more `RESOLVER_*` settings are in `.env.example` |
 | `ALLOWED_ORIGINS` | *(empty)* | Comma-separated site origins allowed to call the API. **Set it in production**, e.g. `https://watch.example.com` |
 | `MAX_ROOMS` | `5000` | Rooms alive at once |
 | `MAX_MEMBERS` | `30` | People per room |
@@ -183,6 +184,8 @@ Everything is under `/api`:
 | `POST /rooms` | Create a room → `{ "code": "K7M2QX" }` (rate limited per IP) |
 | `GET /rooms/{code}` | Does it exist, how many people are in it |
 | `GET /rooms/{code}/events` | **SSE** stream: `hello` (your id and token), a full `state` on every change, `signal` messages addressed to you, and a `ping` every 15 s |
+| `GET /config` | What this server offers (`{ "resolver": false }`) |
+| `POST /resolve` | Only when switched on: `{ "url" }` → one direct address (`404` otherwise) |
 | `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `source` to offer something; `signal` to talk to one member |
 | `GET /time` | Server clock, used to align every client |
 | `GET /health` | Liveness |
@@ -284,6 +287,31 @@ VITE_ICE_SERVERS='[{"urls":"turn:turn.example.com:3478","username":"user","crede
 ```
 
 Credentials in a frontend build are public, so use short-lived TURN credentials.
+
+## Optional: resolve a page link (yt-dlp)
+
+Off by default. When the owner switches it on, a **Resolve a page link** button appears under the link field. The server runs
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) to find the video behind a page address and sends back **one direct address**;
+every browser then plays it by itself. The video never goes through the server, only the lookup does.
+
+What it helps with: sites that expose a plain `.mp4` or an HLS stream that is not tied to anyone's address (tested with Streamable and Dailymotion, up to 1080p).
+What it does not help with, and why:
+
+- **Links tied to the server's address** (YouTube and many others): your friends' browsers have other addresses, so the host refuses them.
+- **Links locked to the original site** (many streaming sites): the host checks which site is asking, and no other site can ask.
+- **Separate picture and sound streams** (the best YouTube quality): a browser cannot play two addresses as one video, so such pages are reported as unsupported.
+- **Logins, private videos, sites yt-dlp has no extractor for** are reported with a clear message.
+- Links **expire**, often within hours.
+
+Turn it on in `.env` (`RESOLVER_ENABLED=true`, then `docker compose up -d --build`; the image installs yt-dlp only in that case, and it should be rebuilt with `--no-cache` now and then because sites change).
+The settings are listed in `.env.example`. Please read this before enabling it:
+
+- The server fetches addresses chosen by visitors, so it is a request-forgery target. Built in: only `http(s)` on ports 80 and 443, no credentials, no `localhost` / `.local` / `.internal` names, every address a name points to must be public, yt-dlp runs with an
+  empty environment and a timeout, at most a few lookups run at once (the rest wait or are refused), results are cached, and each visitor is rate limited.
+- What that cannot fully stop: a site that redirects to an internal address, or a name that changes its answer between our check and yt-dlp's own lookup.
+  **Run the backend where it cannot reach anything private.** A Docker container can usually still reach the host and the local network. Point `RESOLVER_PROXY` at an egress proxy that refuses private ranges, or block it with firewall rules.
+- Set `RESOLVER_ALLOWED_HOSTS` to a short list of sites if you only need a few. Empty means any public site.
+- It sends requests to other sites from your server's address, which may get that address rate limited or blocked, and some sites' terms forbid automated access. You decide whether that is acceptable.
 
 ## Adding a language
 

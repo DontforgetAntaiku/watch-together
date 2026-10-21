@@ -101,3 +101,7 @@
 .source__warn {
   @apply rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink;
 }
+
+.source__resolve {
+  @apply mt-2;
+}

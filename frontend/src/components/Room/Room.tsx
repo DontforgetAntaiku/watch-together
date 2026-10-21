@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { errorText, getConfig, resolvePage } from '../../lib/api'
 import type { RoomSource } from '../../lib/api'
 import { AudioMix, listAudioInputs, openAudioInput } from '../../lib/audioMix'
 import type { AudioInput } from '../../lib/audioMix'
@@ -39,6 +40,8 @@ export function Room({ code }: { code: string }) {
   const deviceStream = useRef<MediaStream | null>(null)
   const [devices, setDevices] = useState<AudioInput[] | null>(null)
   const [deviceOn, setDeviceOn] = useState<string | null>(null)
+  const [canResolve, setCanResolve] = useState(false)
+  const [resolving, setResolving] = useState(false)
   const [soundBusy, setSoundBusy] = useState(false)
   const [soundError, setSoundError] = useState<string | null>(null)
   const captureMode = useRef<'direct' | 'canvas'>('direct')
@@ -227,6 +230,30 @@ export function Room({ code }: { code: string }) {
     }
   }
 
+  useEffect(() => {
+    let alive = true
+    void getConfig().then((c) => alive && setCanResolve(c.resolver))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Ask this server to find the video behind a page link (only when the owner switched that on).
+  const onResolve = async (page: string, offer: boolean) => {
+    setResolving(true)
+    setNotice(null)
+    try {
+      const res = await resolvePage(page)
+      replaceSource({ kind: 'link', url: res.url, label: res.title || hostLabel(res.url) })
+      if (offer) send({ t: 'source', kind: 'link', url: res.url })
+      setNotice(res.needsHeaders ? t('room.resolvedHeaders') : null)
+    } catch (err) {
+      setNotice(errorText(err))
+    } finally {
+      setResolving(false)
+    }
+  }
+
   const onFile = (file: File) => {
     replaceSource({ kind: 'file', url: URL.createObjectURL(file), label: file.name })
   }
@@ -374,6 +401,9 @@ export function Room({ code }: { code: string }) {
             viewers={viewers}
             sendInfo={sendInfo}
             notice={notice}
+            canResolve={canResolve}
+            resolving={resolving}
+            onResolve={onResolve}
             sound={{ devices, active: deviceOn, busy: soundBusy, error: soundError }}
             onSoundList={onSoundList}
             onSoundUse={onSoundUse}

@@ -26,7 +26,7 @@ class Message(BaseModel):
     t: str = Field(max_length=16)
     pos: float | None = None
     ts: float | None = None
-    url: str | None = Field(default=None, max_length=2048)
+    url: str | None = Field(default=None, max_length=4096)
     kind: str | None = Field(default=None, max_length=16)
     id: str | None = Field(default=None, max_length=100)
     provider: str | None = Field(default=None, max_length=16)

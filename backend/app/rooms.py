@@ -12,7 +12,7 @@ from typing import Any
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 6
 MAX_POSITION = 60 * 60 * 24  # a day, far beyond any video
-MAX_URL = 2048
+MAX_URL = 4096  # signed CDN links are long
 MAX_CLOCK_SKEW_MS = 3000
 MAX_SDP = 30_000
 MEDIA_TOLERANCE = 1.0  # seconds: two copies of one video rarely differ by more than container rounding

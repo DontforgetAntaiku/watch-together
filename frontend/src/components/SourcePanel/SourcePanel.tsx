@@ -17,6 +17,9 @@ type Props = {
   viewers: number
   sendInfo: string | null
   notice: string | null
+  canResolve: boolean
+  resolving: boolean
+  onResolve: (url: string, share: boolean) => void
   sound: { devices: AudioInput[] | null; active: string | null; busy: boolean; error: string | null }
   onSoundList: () => void
   onSoundUse: (id: string) => void
@@ -135,6 +138,19 @@ export function SourcePanel(p: Props) {
             {t('source.load')}
           </button>
         </form>
+        {p.canResolve && (
+          <>
+            <button
+              type="button"
+              className="btn source__file source__resolve"
+              disabled={!url.trim() || p.resolving}
+              onClick={() => p.onResolve(url.trim(), share)}
+            >
+              {p.resolving ? t('source.resolving') : t('source.resolve')}
+            </button>
+            <p className="source__hint source__hint--small">{t('source.resolveHint')}</p>
+          </>
+        )}
         <label className="source__check">
           <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
           {t('source.offerCheck')}
