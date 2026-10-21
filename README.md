@@ -31,9 +31,11 @@ A single small VPS can host thousands of rooms.
 <div align="center">
 <img src="docs/home-dark.png" alt="Home page, dark theme" width="520">
 &nbsp;
-<img src="docs/room-mobile-dark.png" alt="Room on a phone, dark theme" width="210">
+<img src="docs/room-mobile-dark.png" alt="A room on a phone: the pinned player, the link field and the tab bar" width="210">
 &nbsp;
 <img src="docs/home-mobile-light.png" alt="Home on a phone, light theme" width="210">
+&nbsp;
+<img src="docs/room-mobile-list-light.png" alt="The watch list on a phone, with the floating tab bar" width="210">
 </div>
 
 ## Features
