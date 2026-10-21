@@ -32,6 +32,6 @@ export class ServerClock {
 }
 
 /** Where the shared playhead should be at `serverNow` according to the last room state. */
-export function targetPosition(s: { playing: boolean; pos: number; at: number }, serverNow: number): number {
-  return s.playing ? Math.max(0, s.pos + (serverNow - s.at) / 1000) : s.pos
+export function targetPosition(s: { playing: boolean; hold?: boolean; pos: number; at: number }, serverNow: number): number {
+  return s.playing && !s.hold ? Math.max(0, s.pos + (serverNow - s.at) / 1000) : s.pos
 }

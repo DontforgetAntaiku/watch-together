@@ -285,3 +285,84 @@ def test_link_source_may_carry_a_separate_audio_file():
     for bad in ("javascript:alert(1)", "https://a b", "x" * 5000):
         with pytest.raises(RoomError):
             m.handle(r, a.id, a.token, {"t": "source", "kind": "link", "url": "https://v.test/video.mp4", "audio": bad})
+
+
+# ---- the room waits for people who are still loading --------------------------------------------------------------
+
+def test_room_holds_while_somebody_loads_and_resumes_from_the_same_spot(monkeypatch):
+    import app.rooms as rooms
+
+    clock = {"ms": 1_000_000}
+    monkeypatch.setattr(rooms, "now_ms", lambda: clock["ms"])
+    m = make(max_members=3)
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 10.0, "ts": clock["ms"]})
+    clock["ms"] += 4000  # four seconds of playing: the playhead stands at 14
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    assert r.hold and r.snapshot()["hold"] is True and r.snapshot()["waiting"] == 1
+    assert r.pos == pytest.approx(14.0) and r.at == clock["ms"]
+    clock["ms"] += 9000  # nine more seconds pass while B loads: the position must not move on
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": False})
+    assert not r.hold and r.pos == pytest.approx(14.0) and r.at == clock["ms"]  # resumes from 14, not 23
+
+
+def test_hold_expires_by_itself_when_the_report_goes_quiet(monkeypatch):
+    import app.rooms as rooms
+
+    mono = {"t": rooms.time.monotonic()}  # start from the real clock: members stamp themselves with it
+    monkeypatch.setattr(rooms.time, "monotonic", lambda: mono["t"])
+    m = make()
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 0.0})
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    assert r.hold
+    mono["t"] += 5
+    m.tick()
+    assert r.hold  # still reporting recently
+    mono["t"] += rooms.HOLD_REFRESH_TTL
+    m.tick()
+    assert not r.hold  # B went silent (closed laptop): the others carry on
+
+
+def test_nobody_holds_the_room_for_more_than_the_maximum(monkeypatch):
+    import app.rooms as rooms
+
+    mono = {"t": rooms.time.monotonic()}
+    monkeypatch.setattr(rooms.time, "monotonic", lambda: mono["t"])
+    m = make()
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 0.0})
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    for _ in range(8):  # B keeps saying "still loading"
+        mono["t"] += 5
+        m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    assert not r.hold  # 40 s later: enough, the room goes on without B
+
+
+def test_no_hold_while_paused_and_leaving_releases_it():
+    m = make(max_members=3)
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    assert not r.hold  # nothing is playing, so nothing to wait for
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 1.0})
+    assert r.hold  # playing started while B was already loading
+    m.leave(r, b)
+    assert not r.hold and r.snapshot()["waiting"] == 0
+
+
+def test_pause_during_a_hold_ends_it_and_bad_reports_are_rejected():
+    m = make()
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 5.0})
+    m.handle(r, b.id, b.token, {"t": "buffer", "on": True})
+    assert r.hold
+    m.handle(r, a.id, a.token, {"t": "pause", "pos": 5.0})
+    assert not r.hold and not r.playing
+    for bad in ("yes", 1, None):
+        with pytest.raises(RoomError):
+            m.handle(r, b.id, b.token, {"t": "buffer", "on": bad})

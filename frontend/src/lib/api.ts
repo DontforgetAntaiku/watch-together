@@ -29,12 +29,16 @@ export type RoomState = {
   source: RoomSource | null
   /** Set when people who opened their own copy report clearly different lengths. */
   media: { lo: number; hi: number; n: number } | null
+  /** The playhead stands still because `waiting` people are still loading. */
+  hold: boolean
+  waiting: number
 }
 
 export type ClientMessage =
   | { t: 'play' | 'pause' | 'seek'; pos: number; ts: number }
   | ({ t: 'source' } & SourceInput)
   | { t: 'media'; dur: number | null }
+  | { t: 'buffer'; on: boolean }
   | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp?: string }
 
 export class ApiError extends Error {

@@ -30,8 +30,11 @@ export function useEngine(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the engine is an external object tied to the adapter
     setEngine(next)
     const timer = window.setInterval(() => next.tick(), 1000)
+    const watch = window.setInterval(() => next.checkBuffering(), 500)
     return () => {
       window.clearInterval(timer)
+      window.clearInterval(watch)
+      next.dispose()
       setEngine(null)
     }
   }, [adapter, clock, myId, send])

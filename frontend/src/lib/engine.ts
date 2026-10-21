@@ -15,6 +15,8 @@ export interface MediaAdapter {
   setRate(r: number): void
   /** The player starts playing by itself after a seek while paused (Vimeo); such a `play` event is not a person. */
   quirkPlayAfterSeek?: boolean
+  /** True while the player is waiting for data (seeking, or recovering from running dry). */
+  stalled?(): boolean
   /** The player pauses by itself around a seek or an ad (Twitch); such a `pause` event is not a person. */
   quirkPauseAfterSeek?: boolean
 }
@@ -23,6 +25,8 @@ const SEEK_TOLERANCE_ON_STATE = 0.4 // seconds: smaller gaps are not worth a jum
 const SEEK_TOLERANCE_ON_TICK = 1.2
 const NUDGE_FROM = 0.15
 const LOCAL_ACTION_GRACE_MS = 1500
+const CHASE_BACKOFF_MS = 4000 // after a corrective seek, give the player this long before correcting again
+const REPORT_REFRESH_MS = 4000
 
 /**
  * Keeps one player on the room's shared playhead.
@@ -37,6 +41,11 @@ export class SyncEngine {
   private graceUntil = 0
   private programmatic: { t: number; until: number } | null = null
   private lastProgrammaticAt = -Infinity
+  private lastChaseAt = -Infinity
+  private enginePausedAt = -Infinity
+  private stalledChecks = 0
+  private reported = false
+  private reportedAt = 0
   private adapter: MediaAdapter
   private clock: ServerClock
   private myId: () => string
@@ -72,10 +81,17 @@ export class SyncEngine {
     const duration = a.duration() || Infinity
     const target = Math.min(this.target(), duration)
     const gap = a.time() - target
-    if (s.playing) {
+    const now = performance.now()
+    if (s.playing && !s.hold) {
       const limit = onStateChange ? SEEK_TOLERANCE_ON_STATE : SEEK_TOLERANCE_ON_TICK
-      if (Math.abs(gap) > limit) this.seekTo(target)
-      else if (!onStateChange && Math.abs(gap) > NUDGE_FROM) a.setRate(gap > 0 ? 0.95 : 1.05)
+      if (Math.abs(gap) > limit) {
+        // A player that is still loading must not chase the room: every seek throws away what it has just
+        // buffered, so it would never catch up (the "infinite loading" of a slow connection). The room waits for it instead.
+        if (onStateChange || (a.stalled?.() !== true && now - this.lastChaseAt > CHASE_BACKOFF_MS)) {
+          if (!onStateChange) this.lastChaseAt = now
+          this.seekTo(target)
+        }
+      } else if (!onStateChange && Math.abs(gap) > NUDGE_FROM) a.setRate(gap > 0 ? 0.95 : 1.05)
       else a.setRate(1)
       if (a.paused() && !a.ended()) {
         a.play().then(
@@ -87,11 +103,43 @@ export class SyncEngine {
       }
       this.onDrift(Math.abs(gap) > limit ? 0 : gap)
     } else {
+      // Paused, or standing still while somebody loads: everybody waits at the same spot.
       a.setRate(1)
-      if (!a.paused()) a.pause()
+      if (!a.paused()) {
+        this.enginePausedAt = now
+        a.pause()
+      }
       if (Math.abs(a.time() - s.pos) > 0.05) this.seekTo(s.pos)
       this.onDrift(0)
     }
+  }
+
+  /** Called a couple of times a second: tell the room while this player is waiting for data, and when that is over. */
+  checkBuffering() {
+    const s = this.state
+    const a = this.adapter
+    const stalled = !!s && s.playing && a.ready() && a.stalled?.() === true
+    const now = performance.now()
+    if (stalled) {
+      this.stalledChecks++
+      if (this.stalledChecks >= 2 && (!this.reported || now - this.reportedAt > REPORT_REFRESH_MS)) {
+        this.reported = true
+        this.reportedAt = now
+        this.send({ t: 'buffer', on: true })
+      }
+    } else {
+      this.stalledChecks = 0
+      if (this.reported) {
+        this.reported = false
+        this.send({ t: 'buffer', on: false })
+      }
+    }
+  }
+
+  /** The player goes away: do not leave the room waiting for it. */
+  dispose() {
+    if (this.reported) this.send({ t: 'buffer', on: false })
+    this.reported = false
   }
 
   private seekTo(t: number) {
@@ -119,6 +167,8 @@ export class SyncEngine {
   handlePause() {
     const s = this.state
     if (!s) return
+    // We paused the player ourselves to wait for somebody who is loading: that is not a person pressing pause.
+    if (s.hold && performance.now() - this.enginePausedAt < 1000) return
     if (this.adapter.quirkPauseAfterSeek && s.playing && performance.now() - this.lastProgrammaticAt < 2500) {
       void this.adapter.play().catch(() => {})
       return

@@ -110,7 +110,9 @@
     "failed": "Could not connect directly to the sharer. Strict networks or VPNs can block this. Ask them to send the file instead, or try again.",
     "retry": "Try again",
     "qualityAuto": "Auto",
-    "notSynced": "Live streams and clips cannot be synchronized: everyone watches on their own."
+    "notSynced": "Live streams and clips cannot be synchronized: everyone watches on their own.",
+    "waiting_one": "Waiting for {{count}} person to load…",
+    "waiting_other": "Waiting for {{count}} people to load…"
   },
   "controls": {
     "play": "Play",

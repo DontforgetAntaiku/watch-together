@@ -224,6 +224,18 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
     return () => window.clearTimeout(timer)
   }, [mode, stream, t])
 
+  // The spinner follows what the element really is doing, checked a few times a second. Events alone can be missed
+  // (a seek that finishes while paused, a stream whose sender paused), which left a spinner turning forever.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const v = video.current
+      if (!v) return
+      const wants = mode === 'media' ? !!url : !!stream && (live || !!latest.current.state?.playing)
+      setBuffering(wants && !error && (v.seeking || v.readyState < 3))
+    }, 300)
+    return () => window.clearInterval(timer)
+  }, [mode, url, stream, live, error])
+
   // Stream mode follows the room clock for its progress bar.
   useEffect(() => {
     if (mode !== 'stream') return
@@ -454,9 +466,6 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
           if (mode === 'media') engine?.apply(true)
           else setError(null)
         }}
-        onWaiting={() => setBuffering(true)}
-        onPlaying={() => setBuffering(false)}
-        onCanPlay={() => setBuffering(false)}
         onError={() => mode === 'media' && url && !error && fail(mediaErrorText(video.current!))}
       />
       {audioUrl && (
@@ -477,6 +486,7 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
         </div>
       )}
       {buffering && !error && !showBlocked && <div className="vp__spinner" aria-label={t('player.buffering')} />}
+      {state?.hold && state.waiting > (buffering ? 1 : 0) && <div className="vp__wait">{t('player.waiting', { count: state.waiting })}</div>}
 
       <Controls
         playing={playing}

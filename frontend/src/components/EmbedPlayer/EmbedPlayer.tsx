@@ -129,6 +129,7 @@ function SyncedEmbed({ embed, state, clock, myId, send }: Props) {
           {error}
         </div>
       )}
+      {state?.hold && state.waiting > 0 && <div className="embed__wait">{t('player.waiting', { count: state.waiting })}</div>}
       {!error && drift !== null && Math.abs(drift) >= 0.6 && (
         <p className="embed__sync">{t('player.catching', { value: `${drift > 0 ? '+' : ''}${drift.toFixed(1)}` })}</p>
       )}

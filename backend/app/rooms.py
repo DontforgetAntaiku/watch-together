@@ -15,6 +15,8 @@ MAX_POSITION = 60 * 60 * 24  # a day, far beyond any video
 MAX_URL = 4096  # signed CDN links are long
 MAX_CLOCK_SKEW_MS = 3000
 MAX_SDP = 30_000
+HOLD_REFRESH_TTL = 12.0  # a loading player repeats its report every few seconds; silence for this long ends it
+HOLD_MAX = 30.0  # nobody can hold the room for longer than this in one go
 MEDIA_TOLERANCE = 1.0  # seconds: two copies of one video rarely differ by more than container rounding
 SOURCE_KINDS = {"link", "embed", "p2p"}
 QUALITY = re.compile(r"^(auto|[1-9]\d{2,3})$")
@@ -56,6 +58,8 @@ class Member:
     token: str
     queue: asyncio.Queue[dict[str, Any]] = field(default_factory=lambda: asyncio.Queue(maxsize=64))
     dur: float | None = None  # length of the video this member has loaded themselves (link or file)
+    buf_since: float | None = None  # monotonic time at which this member started waiting for data
+    buf_seen: float = 0.0
     tokens: float = 0.0
     refilled: float = field(default_factory=time.monotonic)
 
@@ -68,6 +72,7 @@ class Room:
     pos: float = 0.0
     at: int = field(default_factory=now_ms)  # server epoch ms at which `pos` was valid
     rev: int = 0
+    hold: bool = False  # the playhead stands still because somebody is still loading
     by: str = ""
     source: dict[str, Any] | None = None  # what the room offers to watch (a link, an embed or a P2P share)
     empty_since: float | None = field(default_factory=time.monotonic)
@@ -78,6 +83,15 @@ class Room:
         if len(durs) < 2 or max(durs) - min(durs) <= MEDIA_TOLERANCE:
             return None
         return {"lo": min(durs), "hi": max(durs), "n": len(durs)}
+
+    def waiting(self, now: float | None = None) -> int:
+        """How many people are holding the room right now."""
+        now = time.monotonic() if now is None else now
+        return sum(
+            1
+            for m in self.members.values()
+            if m.buf_since is not None and now - m.buf_seen <= HOLD_REFRESH_TTL and now - m.buf_since <= HOLD_MAX
+        )
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -90,6 +104,8 @@ class Room:
             "n": len(self.members),
             "source": self.source,
             "media": self.media(),
+            "hold": self.hold,
+            "waiting": self.waiting() if self.hold else 0,
         }
 
 
@@ -203,8 +219,31 @@ class RoomManager:
             room.rev += 1
         if not room.members:
             room.empty_since = time.monotonic()
+            room.hold = False
         else:
+            self._update_hold(room)
             self._broadcast(room)
+
+    # -- waiting for slow players ------------------------------------------
+    def _update_hold(self, room: Room) -> bool:
+        """Freeze the playhead while somebody loads, let it run again when they are done. True when it changed."""
+        want = room.playing and room.waiting() > 0
+        if want == room.hold:
+            return False
+        now = now_ms()
+        if want:
+            room.pos += max(0, now - room.at) / 1000  # the position they are all standing at
+        room.at = now
+        room.hold = want
+        room.rev += 1
+        room.by = ""
+        return True
+
+    def tick(self) -> None:
+        """Called every couple of seconds: reports expire, so a hold can end without anybody saying anything."""
+        for room in list(self.rooms.values()):
+            if (room.hold or any(m.buf_since is not None for m in room.members.values())) and self._update_hold(room):
+                self._broadcast(room)
 
     # -- messages ----------------------------------------------------------
     def _allow(self, member: Member) -> bool:
@@ -228,6 +267,22 @@ class RoomManager:
             room.rev += 1
             room.by = member.id
             self._broadcast(room)
+            return
+        if kind == "buffer":
+            on = msg.get("on")
+            if not isinstance(on, bool):
+                raise RoomError("bad_value")
+            seen = time.monotonic()
+            if on:
+                if member.buf_since is None:
+                    member.buf_since = seen
+                member.buf_seen = seen
+            else:
+                member.buf_since = None
+            before = room.waiting()
+            changed = self._update_hold(room)
+            if changed or (room.hold and room.waiting() != before):
+                self._broadcast(room)
             return
         if kind == "media":
             member.dur = None if msg.get("dur") is None else _num(msg.get("dur"), 0, MAX_POSITION)
@@ -268,6 +323,7 @@ class RoomManager:
         room.at = at
         room.rev += 1
         room.by = member.id
+        self._update_hold(room)  # playing or pausing may start or end a wait
         self._broadcast(room)
 
     def _broadcast(self, room: Room) -> None:

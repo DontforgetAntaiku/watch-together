@@ -36,6 +36,7 @@ class Message(BaseModel):
     name: str | None = Field(default=None, max_length=120)
     dur: float | None = None
     live: bool | None = None
+    on: bool | None = None
     to: str | None = Field(default=None, max_length=32)
     sig: str | None = Field(default=None, max_length=16)
     sdp: str | None = Field(default=None, max_length=30_000)

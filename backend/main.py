@@ -26,9 +26,13 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         async def janitor() -> None:
+            beat = 0
             while True:
-                await asyncio.sleep(60)
-                manager.sweep()
+                await asyncio.sleep(2)
+                manager.tick()
+                beat += 1
+                if beat % 30 == 0:
+                    manager.sweep()
 
         task = asyncio.create_task(janitor())
         try:

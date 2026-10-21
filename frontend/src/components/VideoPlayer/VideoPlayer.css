@@ -70,3 +70,9 @@
     animation-duration: 3s;
   }
 }
+
+.vp__wait {
+  @apply pointer-events-none absolute left-1/2 top-3 z-10 m-0 -translate-x-1/2 rounded-full px-4 py-1.5 text-center text-xs text-white;
+  background: rgb(0 0 0 / 0.7);
+  max-width: calc(100% - 1.5rem);
+}

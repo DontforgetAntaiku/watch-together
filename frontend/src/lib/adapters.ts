@@ -4,8 +4,33 @@ import i18n from '../i18n'
 
 export class HtmlAdapter implements MediaAdapter {
   el: HTMLVideoElement
+  private recovering = false
+  private recoveringSince = 0
   constructor(el: HTMLVideoElement) {
     this.el = el
+  }
+  /**
+   * Waiting for data: seeking or out of data, and then until a few seconds are buffered again. Without that margin the
+   * player would report "ready" the instant one frame arrives and run dry again straight away.
+   */
+  stalled = () => {
+    const el = this.el
+    const now = performance.now()
+    if (el.seeking || el.readyState < 3) {
+      if (!this.recovering) this.recoveringSince = now
+      this.recovering = true
+      return true
+    }
+    if (!this.recovering) return false
+    let end = el.currentTime
+    for (let i = 0; i < el.buffered.length; i++) if (el.buffered.start(i) <= el.currentTime + 0.1 && el.buffered.end(i) > end) end = el.buffered.end(i)
+    const remaining = Number.isFinite(el.duration) ? el.duration - el.currentTime : Infinity
+    // A cap, so one odd browser can never keep the room waiting for this player forever.
+    if (el.ended || end - el.currentTime >= Math.min(3, remaining) || now - this.recoveringSince > 8000) {
+      this.recovering = false
+      return false
+    }
+    return true
   }
   ready = () => this.el.readyState >= 1
   time = () => this.el.currentTime
@@ -95,6 +120,7 @@ export class YouTubeAdapter implements MediaAdapter {
     }, 400)
   }
 
+  stalled = () => this.player.getPlayerState?.() === 3
   ready = () => typeof this.player.getCurrentTime === 'function' && this.player.getPlayerState() !== -1
   time = () => this.player.getCurrentTime()
   duration = () => this.player.getDuration() || 0
@@ -130,6 +156,7 @@ export class VimeoAdapter implements MediaAdapter {
   private isPaused = true
   private isEnded = false
   loaded = false
+  private buffering = false
   quirkPlayAfterSeek = true
   onPlay: () => void = () => {}
   onPause: () => void = () => {}
@@ -178,6 +205,12 @@ export class VimeoAdapter implements MediaAdapter {
       adapter.now = d.seconds
       adapter.onSeeked()
     })
+    player.on('bufferstart', () => {
+      adapter.buffering = true
+    })
+    player.on('bufferend', () => {
+      adapter.buffering = false
+    })
     player.on('error', (e: { name?: string }) => {
       debug('vimeo error', e)
       // Only failures that mean "this video cannot be shown"; a rejected API call (e.g. a seek out of range) is not one.
@@ -187,6 +220,7 @@ export class VimeoAdapter implements MediaAdapter {
     return adapter
   }
 
+  stalled = () => this.buffering
   ready = () => this.loaded
   time = () => this.now
   duration = () => this.len
