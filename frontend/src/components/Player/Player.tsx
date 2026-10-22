@@ -100,9 +100,19 @@ export function Player({ source, state, clock, myId, send, onSignal, onVideo, on
         <StreamPlayer key={source.sharer} sharer={source.sharer} dur={source.dur} live={source.live} onSignal={onSignal} onEnded={onShareEnded} {...common} />
       )}
       {source?.kind === 'screen' && (
-        <div className="player__empty">
-          <p className="player__empty-title">{t('player.sharingTitle')}</p>
-          <p>{t('player.sharingCount', { count: sharingViewers })}</p>
+        <div className="player__empty" data-paused={state?.playing === false}>
+          {state?.playing === false ? (
+            <>
+              <p className="player__empty-title">{t('player.sharePaused')}</p>
+              <p>{t('player.sharePausedText')}</p>
+            </>
+          ) : (
+            <>
+              <p className="player__empty-title">{t('player.sharingTitle')}</p>
+              <p>{t('player.sharingCount', { count: sharingViewers })}</p>
+              <p>{t('player.sharingPauseNote')}</p>
+            </>
+          )}
         </div>
       )}
     </div>

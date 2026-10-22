@@ -454,3 +454,21 @@ def test_a_plain_share_replaces_the_current_item_but_keeps_the_list():
     one = add(m, r, a, "https://v.test/1", play=True)
     m.handle(r, a.id, a.token, {"t": "source", "kind": "p2p", "name": "film.mkv", "dur": 90})
     assert r.source["kind"] == "p2p" and r.queue == [one]
+
+
+def test_a_live_share_starts_running_and_can_be_paused_by_a_viewer():
+    m = make(max_members=3)
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "pause", "pos": 5.0})  # something earlier left the room paused
+    assert not r.playing
+    m.handle(r, a.id, a.token, {"t": "source", "kind": "p2p", "name": "tab", "live": True})
+    assert r.playing and r.pos == 0.0 and r.snapshot()["source"]["live"] is True
+    m.handle(r, b.id, b.token, {"t": "pause", "pos": 0.0})
+    assert not r.playing
+    m.handle(r, b.id, b.token, {"t": "play", "pos": 0.0})
+    assert r.playing
+    # a shared FILE does not touch the playhead: its player is the clock
+    m.handle(r, a.id, a.token, {"t": "pause", "pos": 9.0})
+    m.handle(r, a.id, a.token, {"t": "source", "kind": "p2p", "name": "film.mkv", "dur": 90})
+    assert not r.playing and r.pos == 9.0

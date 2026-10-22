@@ -340,6 +340,12 @@ class RoomManager:
         kind = msg.get("t")
         if kind == "source":
             room.source = _clean_source(msg, member.id)  # a share or a plain link: not a list item any more
+            if room.source and room.source.get("kind") == "p2p" and room.source.get("live"):
+                # A live share has no playhead, only "running" or "paused" (viewers can pause it for everybody); it starts running.
+                room.playing = True
+                room.pos = 0.0
+                room.at = now_ms()
+                room.hold = False
             room.rev += 1
             room.by = member.id
             self._broadcast(room)

@@ -7,6 +7,7 @@ import { fromResolved, lookupFailed, pickQuality, stepDown, toResolving } from '
 import type { PageSource } from '../../lib/page'
 import { go } from '../../lib/router'
 import { fromRoom, labelFor } from '../../lib/source'
+import { beep } from '../../lib/beep'
 import { fetchTitle } from '../../lib/titles'
 import type { Source } from '../../lib/source'
 import { normalizeUrl } from '../../lib/url'
@@ -115,6 +116,30 @@ export function Room({ code }: { code: string }) {
       void fetchTitle(item.url).then((title) => title && send({ t: 'queue_title', item: item.id, title }))
     }
   }, [state?.queue, myId, send])
+
+  // Somebody paused the tab I am sharing, and I am probably looking at that tab, not at this page: say it loudly (the
+  // banner is in the player; here the page title and a short beep), because a website cannot pause another tab for me.
+  const shareRunning = sharing.sharing === 'screen' ? state?.playing : undefined
+  const lastRunning = useRef<boolean | undefined>(undefined)
+  useEffect(() => {
+    const before = lastRunning.current
+    lastRunning.current = shareRunning
+    if (shareRunning === undefined) return
+    if (before !== undefined && before !== shareRunning) beep(shareRunning ? 'resume' : 'pause')
+    if (shareRunning) return
+    // Still paused after a few seconds: say it again (a handful of times), in case the first cue was missed.
+    let repeats = 0
+    const again = window.setInterval(() => {
+      if (++repeats > 6) window.clearInterval(again)
+      else beep('pause')
+    }, 5000)
+    const title = document.title
+    document.title = `⏸ ${t('player.sharePausedTitle')}`
+    return () => {
+      window.clearInterval(again)
+      document.title = title
+    }
+  }, [shareRunning, t])
 
   const onVideo = useCallback((el: HTMLVideoElement | null) => {
     video.current = el

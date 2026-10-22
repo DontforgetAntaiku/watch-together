@@ -28,3 +28,10 @@
     transform: rotate(360deg);
   }
 }
+
+.player__empty[data-paused='true'] {
+  background: color-mix(in srgb, var(--danger) 55%, black);
+}
+.player__empty[data-paused='true'] .player__empty-title {
+  @apply text-2xl;
+}

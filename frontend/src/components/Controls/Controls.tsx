@@ -139,7 +139,7 @@ export function Controls(p: Props) {
             </>
           )}
           <span className="controls__time">
-            {p.live ? <strong className="controls__live">{t('controls.live')}</strong> : `${formatTime(p.time)} / ${formatTime(max)}`}
+            {p.live ? <strong className="controls__live" data-paused={!p.playing}>{p.playing ? t('controls.live') : t('controls.pausedLabel')}</strong> : `${formatTime(p.time)} / ${formatTime(max)}`}
           </span>
           <span className="controls__spacer" />
           <div className="controls__volume">

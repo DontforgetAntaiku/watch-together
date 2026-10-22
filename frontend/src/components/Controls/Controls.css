@@ -174,3 +174,7 @@
     display: none;
   }
 }
+
+.controls__live[data-paused='true'] {
+  @apply bg-surface-2 text-ink;
+}

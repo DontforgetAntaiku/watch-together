@@ -90,7 +90,7 @@
     "shareFileHint": "Friends watch it straight from your browser (peer to peer), so they need no copy. Your upload speed sets their quality. Press play in your own player first.",
     "fileHint": "Open a video file from this device, only for you. Then you can share it with the room.",
     "tabTitle": "Browser tab or window",
-    "tabHint": "For sites that only play on their own page: open the video in another tab and share that tab with sound.",
+    "tabHint": "For sites that only play on their own page: open the video in another tab and share that tab with sound. A viewer can pause the share for everybody; you will hear an alert and must pause your video too.",
     "shareTab": "Share a tab or window",
     "tabFirefox": "Heads up: Firefox cannot share sound. Use Chrome or Edge for a tab with sound, or share the file.",
     "sending": "Sending {{info}}",
@@ -131,7 +131,11 @@
     "lookingUp": "Looking for the video…",
     "lookingUpText": "The platform's player did not take it, so this server is trying to find the video behind the page.",
     "cantPlay": "This link could not be played",
-    "cantPlayHint": "Try a direct video link, share a browser tab with the video, or open the file."
+    "cantPlayHint": "Try a direct video link, share a browser tab with the video, or open the file.",
+    "sharePaused": "Someone paused your share",
+    "sharePausedText": "Pause the video in the tab you are sharing too: a website cannot do that for you. Press play there when you are ready; the others resume when somebody presses play here.",
+    "sharePausedTitle": "Pause your video!",
+    "sharingPauseNote": "If a viewer pauses, you will be told to pause your video as well."
   },
   "controls": {
     "play": "Play",
@@ -146,7 +150,8 @@
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",
     "live": "LIVE",
-    "quality": "Quality"
+    "quality": "Quality",
+    "pausedLabel": "PAUSED"
   },
   "errors": {
     "offline": "No connection to the server. Check your network and try again.",

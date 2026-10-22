@@ -232,11 +232,20 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
     const timer = window.setInterval(() => {
       const v = video.current
       if (!v) return
-      const wants = mode === 'media' ? !!url : !!stream && (live || !!latest.current.state?.playing)
+      const wants = mode === 'media' ? !!url : !!stream && !!latest.current.state?.playing
       setBuffering(wants && !error && (v.seeking || v.readyState < 3))
     }, 300)
     return () => window.clearInterval(timer)
   }, [mode, url, stream, live, error])
+
+  // A live share (a tab or window) cannot be paused at its source, so each viewer freezes their own picture and sound
+  // while the room is paused, and shows the live picture again when it is resumed.
+  useEffect(() => {
+    const v = video.current
+    if (mode !== 'stream' || !live || !stream || !v) return
+    if (state?.playing) v.play().then(() => setStreamBlocked(false), () => setStreamBlocked(true))
+    else v.pause()
+  }, [mode, live, stream, state?.playing])
 
   // Stream mode follows the room clock for its progress bar.
   useEffect(() => {
@@ -261,7 +270,7 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
   }, [])
   useEffect(() => () => window.clearTimeout(hideTimer.current), [])
 
-  const playing = mode === 'stream' ? (live ? true : !!state?.playing) : !paused
+  const playing = mode === 'stream' ? !!state?.playing : !paused
   const shownDuration = mode === 'stream' ? (streamDuration ?? 0) : duration
   const shownTime = scrub ?? time
 
@@ -271,10 +280,11 @@ export function VideoPlayer({ mode, url, audioUrl, choices, choice, onChoice, on
     if (mode === 'media') {
       if (v.paused) v.play().catch(() => setBlocked(true))
       else v.pause()
-    } else if (!live) {
+    } else {
+      // Also for a live share: there is no playhead to move, but anybody can pause it for everybody.
       send({ t: state?.playing ? 'pause' : 'play', pos: roomTime(), ts: clock.serverNow() })
     }
-  }, [mode, live, send, state?.playing, roomTime, clock, setBlocked])
+  }, [mode, send, state?.playing, roomTime, clock, setBlocked])
 
   const seekTo = useCallback(
     (t: number) => {
