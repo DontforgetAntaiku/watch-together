@@ -1,7 +1,7 @@
 @reference "../../index.css";
 
 .hint {
-  @apply relative inline-flex;
+  @apply inline-flex;
 }
 .hint__btn {
   @apply inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line bg-surface p-0 font-serif text-xs font-bold italic text-muted;
@@ -9,21 +9,19 @@
 .hint__btn:hover {
   @apply border-accent-text text-accent-text;
 }
+/* Fixed to the screen (placed by Hint.tsx), so it can never widen the page. */
 .hint__tip {
-  @apply pointer-events-none absolute left-0 top-full z-40 mt-2 hidden w-64 rounded-xl border border-line bg-surface p-3 text-left text-xs font-normal normal-case leading-snug tracking-normal text-ink shadow-lg;
-  max-width: min(18rem, 78vw);
+  @apply pointer-events-none fixed z-50 hidden rounded-xl border border-line bg-surface p-3 text-left text-xs font-normal normal-case leading-snug tracking-normal text-ink shadow-lg;
+  width: min(18rem, calc(100vw - 16px));
 }
-.hint:hover .hint__tip,
-.hint[data-open='true'] .hint__tip,
-.hint__btn:focus-visible + .hint__tip {
+.hint__tip[data-open='true'] {
   @apply block;
-}
-/* Near the right edge the bubble opens to the left. */
-.hint--end .hint__tip {
-  @apply left-auto right-0;
 }
 @media (pointer: coarse) {
   .hint__btn {
     @apply h-8 w-8;
+  }
+  .hint__tip {
+    @apply text-sm;
   }
 }

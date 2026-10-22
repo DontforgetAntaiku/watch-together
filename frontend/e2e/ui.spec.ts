@@ -200,6 +200,41 @@ test.describe('spacing', () => {
   })
 })
 
+test.describe('hint bubbles stay on the screen', () => {
+  const sizes = [[320, 640], [390, 844], [430, 932], [1000, 700], [1280, 800]]
+  for (const [width, height] of sizes) {
+    test(`every hint opens inside the screen at ${width}px and never widens the page`, async ({ browser }) => {
+      const phone = width < 500
+      const p = await newPage(browser, { viewport: { width, height }, isMobile: phone, hasTouch: phone })
+      await createRoom(p)
+      const checked: string[] = []
+      for (const tab of phone ? ['add', 'share', 'list'] : [null]) {
+        if (tab) await p.locator(`.tabs__tab[data-tab="${tab}"]`).click()
+        const buttons = p.locator('.hint__btn:visible')
+        const n = await buttons.count()
+        for (let i = 0; i < n; i++) {
+          await buttons.nth(i).click()
+          const tip = buttons.nth(i).locator('xpath=following-sibling::*[@role="tooltip"]')
+          await expect(tip).toBeVisible()
+          const box = (await tip.boundingBox())!
+          expect(box.x, `bubble ${i} left edge`).toBeGreaterThanOrEqual(0)
+          expect(box.x + box.width, `bubble ${i} right edge`).toBeLessThanOrEqual(width)
+          expect(box.y, `bubble ${i} top edge`).toBeGreaterThanOrEqual(0)
+          expect(box.y + box.height, `bubble ${i} bottom edge`).toBeLessThanOrEqual(height)
+          const page = await p.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth, vv: window.visualViewport?.width ?? innerWidth, scale: window.visualViewport?.scale ?? 1 }))
+          expect(page.scroll, 'the page must not get wider than the screen').toBeLessThanOrEqual(page.inner)
+          expect(page.vv).toBe(page.inner)
+          expect(page.scale).toBe(1)
+          checked.push(`${tab ?? 'page'}:${i}`)
+          await p.mouse.click(5, height - 5) // tap somewhere else: it closes
+          await expect(tip).toBeHidden()
+        }
+      }
+      expect(checked.length).toBeGreaterThanOrEqual(2)
+    })
+  }
+})
+
 test.describe('hints', () => {
   test('the little i explains on hover and on tap, and the page stays short', async ({ browser }) => {
     const p = await newPage(browser)

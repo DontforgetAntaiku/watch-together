@@ -60,7 +60,8 @@
   --color-pink: var(--pink);
 }
 
-html {
+html,
+body {
   overflow-x: clip;
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
