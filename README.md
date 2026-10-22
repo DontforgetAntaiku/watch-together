@@ -145,7 +145,7 @@ cd frontend && npm run test:e2e                     # real browsers: needs ffmpe
 
 The end-to-end suite starts the backend and the frontend itself, generates small WebM videos with ffmpeg, and drives several Chromium windows against them. It covers
 **+10 s / -10 s** (many presses, at the start and the end of a video, while paused, with the keyboard), **changing the time by hand** (code, the seek bar, the keyboard, past the end, many random seeks, joining in the middle),
-**loading** (a throttled connection must make the room wait instead of chasing it, recovery afterwards, a lost network, a missing file), the **watch list**, **sharing a file**, translations, phone layouts and the link-preview tags.
+**loading** (a throttled connection must make the room wait instead of chasing it, recovery afterwards, a lost network, a missing file), the **watch list**, **sharing a file**, translations, phone layouts (including that the "i" hint bubbles stay on the screen and never widen the page) and the link-preview tags.
 Set `CHROMIUM_PATH` to use an installed Chromium, or run `npx playwright install chromium` once.
 
 ## Docker
