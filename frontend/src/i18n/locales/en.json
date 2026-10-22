@@ -110,7 +110,7 @@
   },
   "player": {
     "emptyTitle": "No video yet",
-    "emptyText": "Pick a link, a file or a tab below. Everyone in the room picks their own, or you can share one with everybody.",
+    "emptyText": "Paste a link below and press Play, or open a file, or share a browser tab. Everyone in the room sees it.",
     "sharingTitle": "You are sharing a tab or window",
     "sharingCount_one": "{{count}} person is watching. Play and pause in the shared tab itself.",
     "sharingCount_other": "{{count}} people are watching. Play and pause in the shared tab itself.",

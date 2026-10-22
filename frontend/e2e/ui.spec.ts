@@ -178,6 +178,28 @@ test.describe('phone tabs', () => {
   })
 })
 
+test.describe('spacing', () => {
+  for (const width of [1000, 1100, 1280, 1600]) {
+    test(`the panel and the player keep a gap under the header at ${width}px`, async ({ browser }) => {
+      const p = await newPage(browser, { viewport: { width, height: 800 } })
+      await createRoom(p)
+      const header = (await p.locator('.header').boundingBox())!
+      for (const sel of ['.source', '.room__info', '.room__stage']) {
+        const box = (await p.locator(sel).first().boundingBox())!
+        expect(box.y - (header.y + header.height), `${sel} under the header`).toBeGreaterThanOrEqual(8)
+      }
+    })
+  }
+
+  test('on a phone the pinned player also keeps off the header controls', async ({ browser }) => {
+    const p = await newPage(browser, { viewport: { width: 390, height: 800 }, isMobile: true, hasTouch: true })
+    await createRoom(p)
+    const header = (await p.locator('.header').boundingBox())!
+    const stage = (await p.locator('.room__stage').boundingBox())!
+    expect(stage.y - (header.y + header.height)).toBeGreaterThanOrEqual(0)
+  })
+})
+
 test.describe('hints', () => {
   test('the little i explains on hover and on tap, and the page stays short', async ({ browser }) => {
     const p = await newPage(browser)
