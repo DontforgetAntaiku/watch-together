@@ -1,7 +1,5 @@
 import asyncio
 import json
-import time
-from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -16,6 +14,13 @@ router = APIRouter()
 
 STATUS = {"no_item": 404, "queue_full": 409, "no_target": 404, "no_room": 404, "full": 409, "busy": 503, "no_member": 403, "slow_down": 429, "bad_value": 422}
 KEEPALIVE_SECONDS = 15
+
+
+class ImportItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(max_length=1500)
+    title: str | None = Field(default=None, max_length=300)
 
 
 class Message(BaseModel):
@@ -41,6 +46,7 @@ class Message(BaseModel):
     title: str | None = Field(default=None, max_length=300)
     index: int | None = None
     play: bool | None = None
+    items: list[ImportItem] | None = Field(default=None, max_length=50)
     to: str | None = Field(default=None, max_length=32)
     sig: str | None = Field(default=None, max_length=16)
     sdp: str | None = Field(default=None, max_length=30_000)
@@ -93,27 +99,24 @@ async def server_time() -> JSONResponse:
 @router.post("/rooms", status_code=201)
 async def create_room(request: Request) -> dict[str, str]:
     _check_origin(request)
-    settings = _settings(request)
-    hits: defaultdict[str, deque[float]] = request.app.state.create_hits
-    bucket = hits[_client_ip(request)]
-    now = time.monotonic()
-    while bucket and now - bucket[0] > 60:
-        bucket.popleft()
-    if len(bucket) >= settings.create_per_minute:
+    ip = _client_ip(request)
+    if not request.app.state.create_limit.hit(ip):
         raise HTTPException(status_code=429, detail="slow_down")
-    bucket.append(now)
-    if len(hits) > 10_000:
-        for ip in [k for k, v in hits.items() if not v or now - v[-1] > 60]:
-            del hits[ip]
+    owners = request.app.state.room_owners
+    if not owners.take(ip):
+        raise HTTPException(status_code=429, detail="slow_down")
     try:
-        room = _manager(request).create()
+        room = _manager(request).create(owner=ip, on_gone=owners.give)
     except RoomError as err:
+        owners.give(ip)
         raise _fail(err) from err
     return {"code": room.code}
 
 
 @router.get("/rooms/{code}")
 async def room_info(code: str, request: Request) -> dict[str, Any]:
+    if not request.app.state.lookup_limit.hit(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="slow_down")  # codes cannot be guessed at full speed
     room = _room_or_404(request, code)
     return {"code": room.code, "n": len(room.members)}
 
@@ -127,9 +130,14 @@ async def events(code: str, request: Request) -> StreamingResponse:
     _check_origin(request)
     room = _room_or_404(request, code)
     manager = _manager(request)
+    ip = _client_ip(request)
+    streams = request.app.state.streams
+    if not streams.take(ip):
+        raise HTTPException(status_code=429, detail="slow_down")  # one address cannot hold hundreds of streams open
     try:
         member = manager.join(room)
     except RoomError as err:
+        streams.give(ip)
         raise _fail(err) from err
 
     async def stream() -> AsyncIterator[bytes]:
@@ -147,6 +155,7 @@ async def events(code: str, request: Request) -> StreamingResponse:
                 yield _sse(event)
         finally:
             manager.leave(room, member)
+            streams.give(ip)
 
     headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no", "X-Content-Type-Options": "nosniff"}
     return StreamingResponse(stream(), media_type="text/event-stream", headers=headers)

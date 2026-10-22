@@ -472,3 +472,96 @@ def test_a_live_share_starts_running_and_can_be_paused_by_a_viewer():
     m.handle(r, a.id, a.token, {"t": "pause", "pos": 9.0})
     m.handle(r, a.id, a.token, {"t": "source", "kind": "p2p", "name": "film.mkv", "dur": 90})
     assert not r.playing and r.pos == 9.0
+
+
+# -- the ready check -------------------------------------------------------
+def drain(*members):
+    for m in members:
+        while not m.queue.empty():
+            m.queue.get_nowait()
+
+
+def test_ready_check_counts_everybody_then_counts_down(monkeypatch):
+    m = make(max_members=3)
+    r = m.create()
+    a, b, c = m.join(r), m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "play", "pos": 10})
+    drain(a, b, c)
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    s = b.queue.get_nowait()
+    assert s["playing"] is False and s["pos"] >= 10 and s["by"] == ""
+    assert s["check"]["by"] == a.id and s["check"]["ready"] == [a.id] and s["go"] is None
+    m.handle(r, b.id, b.token, {"t": "ready_yes"})
+    assert r.check is not None and r.go is None
+    m.handle(r, c.id, c.token, {"t": "ready_yes"})
+    assert r.check is None and r.go is not None and r.go > now_ms()
+    assert r.playing is False
+    m.tick_checks()
+    assert r.go is not None and r.playing is False  # not yet
+    r.go = now_ms() - 1
+    drain(a)
+    m.tick_checks()
+    s = a.queue.get_nowait()
+    assert s["playing"] is True and s["go"] is None and s["by"] == ""
+
+
+def test_ready_check_ends_on_cancel_timeout_and_a_decision():
+    m = make(max_members=3)
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    m.handle(r, b.id, b.token, {"t": "ready_cancel"})
+    assert r.check is None and r.go is None
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    r.check["until"] = now_ms() - 1
+    m.tick_checks()
+    assert r.check is None and r.playing is False
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    m.handle(r, b.id, b.token, {"t": "play", "pos": 3})  # somebody just pressed play
+    assert r.check is None and r.playing is True
+    m.handle(r, b.id, b.token, {"t": "ready_yes"})  # no check: nothing happens
+    assert r.check is None and r.go is None
+
+
+def test_ready_check_when_a_member_leaves_or_is_alone():
+    m = make(max_members=3)
+    r = m.create()
+    a = m.join(r)
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    assert r.go is not None  # alone: everybody is ready at once
+    m.handle(r, a.id, a.token, {"t": "ready_cancel"})
+    b = m.join(r)
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    assert r.check is not None and r.go is None
+    m.leave(r, b)  # the one still missing goes away
+    assert r.go is not None
+    m.leave(r, a)
+    assert r.check is None and r.go is None
+
+
+def test_ready_start_is_one_at_a_time():
+    m = make(max_members=3)
+    r = m.create()
+    a, b = m.join(r), m.join(r)
+    m.handle(r, a.id, a.token, {"t": "ready_start"})
+    until = r.check["until"]
+    m.handle(r, b.id, b.token, {"t": "ready_start"})
+    assert r.check["until"] == until and r.check["by"] == a.id
+
+
+# -- importing several links -----------------------------------------------
+def test_queue_import_adds_new_links_and_caps_the_list():
+    m = make(max_members=3)
+    r = m.create()
+    a = m.join(r)
+    m.handle(r, a.id, a.token, {"t": "queue_add", "url": "https://x.example/1"})
+    m.handle(r, a.id, a.token, {"t": "queue_import", "items": [{"url": "https://x.example/1", "title": "one"}, {"url": "https://x.example/2", "title": " Two "}, {"url": "https://x.example/3"}]})
+    assert [q["url"] for q in r.queue] == ["https://x.example/1", "https://x.example/2", "https://x.example/3"]
+    assert r.queue[1]["title"] == "Two" and r.queue[2]["title"] is None
+    big = [{"url": f"https://y.example/{i}"} for i in range(50)]
+    m.handle(r, a.id, a.token, {"t": "queue_import", "items": big})
+    assert len(r.queue) == 50
+    for bad in (None, [], [{"url": "javascript:alert(1)"}], ["https://x.example"], [{"url": "https://x.example/ a"}]):
+        with pytest.raises(RoomError) as e:
+            m.handle(r, a.id, a.token, {"t": "queue_import", "items": bad})
+        assert e.value.code == "bad_value"

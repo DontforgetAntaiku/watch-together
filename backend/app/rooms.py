@@ -6,6 +6,7 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
+from collections.abc import Callable
 from typing import Any
 
 # No 0/O/1/I/L: a code is read aloud and typed by hand.
@@ -20,6 +21,8 @@ MAX_QUEUE_URL = 1500
 MAX_TITLE = 200
 HOLD_REFRESH_TTL = 12.0  # a loading player repeats its report every few seconds; silence for this long ends it
 HOLD_MAX = 30.0  # nobody can hold the room for longer than this in one go
+CHECK_TTL_MS = 45_000  # a ready check that nobody finishes ends by itself
+COUNTDOWN_MS = 3000  # "3, 2, 1" after everybody said they are ready
 MEDIA_TOLERANCE = 1.0  # seconds: two copies of one video rarely differ by more than container rounding
 SOURCE_KINDS = {"link", "embed", "p2p"}
 QUALITY = re.compile(r"^(auto|[1-9]\d{2,3})$")
@@ -78,6 +81,10 @@ class Room:
     hold: bool = False  # the playhead stands still because somebody is still loading
     queue: list[dict[str, Any]] = field(default_factory=list)  # the shared watch list: {id, url, title, by}
     by: str = ""
+    check: dict[str, Any] | None = None  # a ready check in progress: {by, ready: set of member ids, until: epoch ms}
+    go: int | None = None  # epoch ms at which the countdown ends and everybody starts
+    owner: str = ""  # the address that created the room (for the per-address room limit)
+    on_gone: Callable[[str], None] | None = None
     source: dict[str, Any] | None = None  # what the room offers to watch (a link, an embed or a P2P share)
     empty_since: float | None = field(default_factory=time.monotonic)
 
@@ -111,6 +118,8 @@ class Room:
             "queue": self.queue,
             "hold": self.hold,
             "waiting": self.waiting() if self.hold else 0,
+            "check": None if self.check is None else {"by": self.check["by"], "ready": sorted(self.check["ready"]), "until": self.check["until"]},
+            "go": self.go,
         }
 
 
@@ -192,14 +201,14 @@ class RoomManager:
         self.msg_burst = msg_burst
 
     # -- lifecycle ---------------------------------------------------------
-    def create(self) -> Room:
+    def create(self, owner: str = "", on_gone: Callable[[str], None] | None = None) -> Room:
         self.sweep()
         if len(self.rooms) >= self.max_rooms:
             raise RoomError("busy")
         for _ in range(20):
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
             if code not in self.rooms:
-                room = Room(code=code)
+                room = Room(code=code, owner=owner, on_gone=on_gone)
                 self.rooms[code] = room
                 return room
         raise RoomError("busy")
@@ -213,7 +222,9 @@ class RoomManager:
     def sweep(self) -> None:
         now = time.monotonic()
         for code in [c for c, r in self.rooms.items() if r.empty_since is not None and now - r.empty_since > self.empty_ttl]:
-            del self.rooms[code]
+            room = self.rooms.pop(code)
+            if room.on_gone and room.owner:
+                room.on_gone(room.owner)
 
     # -- membership --------------------------------------------------------
     def join(self, room: Room) -> Member:
@@ -230,16 +241,81 @@ class RoomManager:
         if room.source and room.source.get("kind") == "p2p" and room.source.get("by") == member.id:
             room.source = None
             room.rev += 1
+        if room.check is not None:
+            room.check["ready"].discard(member.id)
         if not room.members:
             room.empty_since = time.monotonic()
             room.hold = False
+            self._clear_check(room)
         else:
+            if self._all_ready(room):
+                self._begin_countdown(room)
             self._update_hold(room)
             self._broadcast(room)
+
+    # -- the ready check ----------------------------------------------------
+    @staticmethod
+    def _clear_check(room: Room) -> None:
+        """Somebody pressed play, paused, seeked or changed the video: the check (or countdown) is over."""
+        room.check = None
+        room.go = None
+
+    @staticmethod
+    def _begin_countdown(room: Room) -> None:
+        room.check = None
+        room.go = now_ms() + COUNTDOWN_MS
+
+    @staticmethod
+    def _all_ready(room: Room) -> bool:
+        return room.check is not None and bool(room.members) and all(mid in room.check["ready"] for mid in room.members)
+
+    def _ready(self, room: Room, member: Member, kind: str) -> None:
+        if kind == "ready_start":
+            if room.check is not None or room.go is not None:
+                return  # one at a time
+            now = now_ms()
+            if room.playing and not room.hold:
+                room.pos += max(0, now - room.at) / 1000  # stand still where everybody is now
+            room.playing = False
+            room.hold = False
+            room.at = now
+            room.rev += 1
+            room.by = ""  # nobody's echo: every player applies it, the one who asked as well
+            room.check = {"by": member.id, "ready": {member.id}, "until": now + CHECK_TTL_MS}
+        elif kind == "ready_yes":
+            if room.check is None:
+                return
+            room.check["ready"].add(member.id)
+        elif room.check is None and room.go is None:  # ready_cancel
+            return
+        else:
+            self._clear_check(room)
+        if self._all_ready(room):
+            self._begin_countdown(room)
+        self._broadcast(room)
+
+    def tick_checks(self) -> None:
+        """Called several times a second: a ready check can run out, and a countdown must end on time."""
+        for room in list(self.rooms.values()):
+            if room.check is None and room.go is None:
+                continue
+            now = now_ms()
+            if room.check is not None and now >= room.check["until"]:
+                room.check = None
+                self._broadcast(room)
+            elif room.go is not None and now >= room.go:
+                room.go = None
+                room.playing = True
+                room.hold = False
+                room.at = now
+                room.rev += 1
+                room.by = ""
+                self._broadcast(room)
 
     # -- the shared watch list ----------------------------------------------
     def _play_item(self, room: Room, member_id: str, item: dict[str, Any]) -> None:
         room.source = {"kind": "link", "url": item["url"], "item": item["id"], "by": member_id}
+        self._clear_check(room)
         room.playing = True
         room.pos = 0.0
         room.at = now_ms()
@@ -271,6 +347,23 @@ class RoomManager:
                 existing["title"] = title
             if msg.get("play") is True:
                 self._play_item(room, member.id, existing)
+        elif kind == "queue_import":
+            items = msg.get("items")
+            if not isinstance(items, list) or not items or len(items) > MAX_QUEUE:
+                raise RoomError("bad_value")
+            have = {it["url"] for it in room.queue}
+            for raw in items:
+                if not isinstance(raw, dict):
+                    raise RoomError("bad_value")
+                url = _clean_url(raw.get("url"))
+                if url is None or len(url) > MAX_QUEUE_URL:
+                    raise RoomError("bad_value")
+                if url in have:
+                    continue
+                if len(room.queue) >= MAX_QUEUE:
+                    break  # as many as fit
+                have.add(url)
+                room.queue.append({"id": secrets.token_hex(4), "url": url, "title": _clean_title(raw.get("title")), "by": member.id})
         elif kind == "queue_remove":
             removed = room.queue.pop(find(msg.get("item")))
             if room.source and room.source.get("item") == removed["id"]:
@@ -340,6 +433,7 @@ class RoomManager:
         kind = msg.get("t")
         if kind == "source":
             room.source = _clean_source(msg, member.id)  # a share or a plain link: not a list item any more
+            self._clear_check(room)
             if room.source and room.source.get("kind") == "p2p" and room.source.get("live"):
                 # A live share has no playhead, only "running" or "paused" (viewers can pause it for everybody); it starts running.
                 room.playing = True
@@ -352,6 +446,9 @@ class RoomManager:
             return
         if kind.startswith("queue_"):
             self._queue(room, member, kind, msg)
+            return
+        if kind in {"ready_start", "ready_yes", "ready_cancel"}:
+            self._ready(room, member, kind)
             return
         if kind == "buffer":
             on = msg.get("on")
@@ -400,6 +497,7 @@ class RoomManager:
         ts = msg.get("ts")
         if isinstance(ts, (int, float)) and not isinstance(ts, bool) and math.isfinite(ts):
             at = int(min(now, max(now - MAX_CLOCK_SKEW_MS, ts)))
+        self._clear_check(room)  # a person decided: no more waiting for the others
         if kind == "play":
             room.playing = True
         elif kind == "pause":

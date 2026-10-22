@@ -17,6 +17,9 @@ class Settings:
     max_members: int
     empty_room_ttl: float
     create_per_minute: int
+    lookup_per_minute: int
+    streams_per_ip: int
+    rooms_per_ip: int
     msg_per_second: float
     msg_burst: int
     resolver: bool
@@ -37,6 +40,9 @@ def load_settings() -> Settings:
         max_members=int(os.getenv("MAX_MEMBERS", "30")),
         empty_room_ttl=float(os.getenv("EMPTY_ROOM_TTL", "1800")),
         create_per_minute=int(os.getenv("CREATE_PER_MINUTE", "20")),
+        lookup_per_minute=int(os.getenv("LOOKUP_PER_MINUTE", "60")),
+        streams_per_ip=int(os.getenv("STREAMS_PER_IP", "20")),
+        rooms_per_ip=int(os.getenv("ROOMS_PER_IP", "10")),
         msg_per_second=float(os.getenv("MSG_PER_SECOND", "10")),
         msg_burst=int(os.getenv("MSG_BURST", "30")),
         resolver=_flag("RESOLVER_ENABLED", False),

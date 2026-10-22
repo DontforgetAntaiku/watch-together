@@ -1,12 +1,12 @@
 import asyncio
 import logging
-from collections import defaultdict, deque
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
 from app import resolver as resolver_tool
+from app.limits import RateLimit, Slots
 from app.resolver import Resolver
 from app.rooms import RoomManager
 from app.routers import routers
@@ -28,10 +28,12 @@ def create_app() -> FastAPI:
         async def janitor() -> None:
             beat = 0
             while True:
-                await asyncio.sleep(2)
-                manager.tick()
+                await asyncio.sleep(0.25)
+                manager.tick_checks()
                 beat += 1
-                if beat % 30 == 0:
+                if beat % 8 == 0:
+                    manager.tick()
+                if beat % 240 == 0:
                     manager.sweep()
 
         task = asyncio.create_task(janitor())
@@ -52,8 +54,11 @@ def create_app() -> FastAPI:
     app = FastAPI(title="watch-together", debug=False, lifespan=lifespan, **docs)
     app.state.settings = settings
     app.state.rooms = manager
-    app.state.create_hits = defaultdict(deque)
-    app.state.resolve_hits = defaultdict(deque)
+    app.state.create_limit = RateLimit(settings.create_per_minute)
+    app.state.resolve_limit = RateLimit(settings.resolver_per_minute, max_keys=5000)
+    app.state.lookup_limit = RateLimit(settings.lookup_per_minute)
+    app.state.streams = Slots(settings.streams_per_ip)
+    app.state.room_owners = Slots(settings.rooms_per_ip)
     app.state.resolver = (
         Resolver(
             hosts=settings.resolver_hosts,

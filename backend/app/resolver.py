@@ -265,11 +265,11 @@ def find_binary() -> list[str] | None:
     return [sys.executable, "-m", "yt_dlp"]
 
 
-async def run_ytdlp(url: str, timeout: float, proxy: str = "", binary: list[str] | None = None) -> dict[str, Any]:
+async def run_ytdlp(url: str, timeout: float, proxy: str = "", binary: list[str] | None = None, mode: list[str] | None = None) -> dict[str, Any]:
     cmd = binary or find_binary()
     if cmd is None:
         raise ResolveError("unavailable_tool")
-    args = [*cmd, "--ignore-config", "-J", "--no-playlist", "--no-warnings", "--socket-timeout", "10", "--cache-dir", "/tmp/yt-dlp-cache"]
+    args = [*cmd, "--ignore-config", "-J", *(mode or ["--no-playlist"]), "--no-warnings", "--socket-timeout", "10", "--cache-dir", "/tmp/yt-dlp-cache"]
     if proxy:
         args += ["--proxy", proxy]
     args += ["--", url]
@@ -295,13 +295,38 @@ async def run_ytdlp(url: str, timeout: float, proxy: str = "", binary: list[str]
     return data
 
 
+MAX_PLAYLIST = 50
+
+
+async def run_playlist(url: str, timeout: float, proxy: str = "") -> dict[str, Any]:
+    """The entries of a playlist, without looking inside each video (one quick request)."""
+    return await run_ytdlp(url, timeout, proxy, mode=["--flat-playlist", "--playlist-end", str(MAX_PLAYLIST)])
+
+
+def playlist_items(info: dict[str, Any]) -> list[dict[str, str | None]]:
+    """[{url, title}] for the entries that have a plain web address."""
+    out: list[dict[str, str | None]] = []
+    for entry in info.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        link = entry.get("url") or entry.get("webpage_url")
+        if not isinstance(link, str) or not link.startswith(("http://", "https://")) or len(link) > 1500:
+            continue
+        title = entry.get("title")
+        out.append({"url": link, "title": title.strip()[:200] if isinstance(title, str) and title.strip() else None})
+        if len(out) >= MAX_PLAYLIST:
+            break
+    return out
+
+
 class Resolver:
-    def __init__(self, hosts: tuple[str, ...], timeout: float, concurrent: int, proxy: str, cache_ttl: float, runner=run_ytdlp):
+    def __init__(self, hosts: tuple[str, ...], timeout: float, concurrent: int, proxy: str, cache_ttl: float, runner=run_ytdlp, playlist_runner=run_playlist):
         self.hosts = hosts
         self.timeout = timeout
         self.proxy = proxy
         self.cache_ttl = cache_ttl
         self.runner = runner
+        self.playlist_runner = playlist_runner
         self._slots = asyncio.Semaphore(max(1, concurrent))
         self._inflight = 0
         self._max_inflight = max(1, concurrent) * 4  # the running ones plus three times as many waiting
@@ -332,3 +357,19 @@ class Resolver:
                 self._cache.clear()
         self._cache[url] = (now, picked)
         return picked
+
+    async def playlist(self, raw: str) -> list[dict[str, str | None]]:
+        url, host = validate_page_url(raw, self.hosts)
+        await ensure_public(host)
+        if self._inflight >= self._max_inflight:
+            raise ResolveError("busy")
+        self._inflight += 1
+        try:
+            async with self._slots:
+                info = await self.playlist_runner(url, self.timeout, self.proxy)
+        finally:
+            self._inflight -= 1
+        items = playlist_items(info)
+        if not items:
+            raise ResolveError("unavailable")
+        return items
