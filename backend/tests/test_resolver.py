@@ -252,6 +252,42 @@ async def test_endpoint_end_to_end_with_limits(monkeypatch):
         assert (await c.post("/api/resolve", json={"url": "https://site.test/v"})).status_code == 429
 
 
+def test_playlist_items_keep_only_plain_web_links():
+    info = {"entries": [
+        {"url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "title": "  One "},
+        {"webpage_url": "https://x.test/2", "title": None},
+        {"url": "javascript:alert(1)", "title": "bad"},
+        {"url": "https://x.test/" + "a" * 2000},
+        "nonsense", None, {"title": "no link"},
+    ]}
+    assert r.playlist_items(info) == [{"url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "title": "One"}, {"url": "https://x.test/2", "title": None}]
+    assert len(r.playlist_items({"entries": [{"url": f"https://x.test/{i}"} for i in range(80)]})) == r.MAX_PLAYLIST
+    assert r.playlist_items({}) == []
+
+
+async def test_playlist_endpoint_shares_the_lookup_limit(monkeypatch):
+    app, c = await client_for(monkeypatch, RESOLVER_ENABLED="true", RESOLVER_PER_MINUTE="3")
+
+    async def playlist(url, timeout, proxy):
+        if "empty" in url:
+            return {"entries": []}
+        return {"entries": [{"url": "https://x.test/1", "title": "A"}, {"url": "https://x.test/2"}]}
+
+    app.state.resolver.playlist_runner = playlist
+    async with c:
+        ok = await c.post("/api/playlist", json={"url": "https://site.test/playlist?list=1"})
+        assert ok.status_code == 200 and ok.json() == {"items": [{"url": "https://x.test/1", "title": "A"}, {"url": "https://x.test/2", "title": None}]}
+        assert (await c.post("/api/playlist", json={"url": "https://site.test/empty"})).json() == {"detail": "unavailable"}
+        assert (await c.post("/api/playlist", json={"url": "http://169.254.169.254/"})).status_code == 422
+        assert (await c.post("/api/playlist", json={"url": "https://site.test/playlist?list=1"})).status_code == 429  # the 4th lookup of any kind
+
+
+async def test_playlist_endpoint_is_absent_when_the_tool_is_off(monkeypatch):
+    app, c = await client_for(monkeypatch)
+    async with c:
+        assert (await c.post("/api/playlist", json={"url": "https://site.test/p"})).status_code == 404
+
+
 # ---- the real tool (needs yt-dlp and the internet): RUN_NETWORK_TESTS=1 ---------------------------------------------
 
 @pytest.mark.skipif(not os.getenv("RUN_NETWORK_TESTS") or not shutil.which("yt-dlp"), reason="needs yt-dlp and the internet")
