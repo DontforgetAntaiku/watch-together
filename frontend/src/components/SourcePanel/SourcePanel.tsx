@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { QueueItem } from '../../lib/api'
+import type { ListEntry } from '../../lib/listfile'
 import type { AudioInput } from '../../lib/audioMix'
 import { canCaptureElement, canShareScreen, isFirefox } from '../../lib/p2p'
 import type { Source } from '../../lib/source'
@@ -39,6 +40,14 @@ type Props = {
   onPlayItem: (id: string) => void
   onRemoveItem: (id: string) => void
   onMoveItem: (id: string, index: number) => void
+  onImport: (items: ListEntry[]) => void
+  onListProblem: (message: string) => void
+  /** Ask everybody whether they are ready, then start together (nothing to ask about while a check runs). */
+  onReady: () => void
+  readyBusy: boolean
+  /** Show the short tip about ad blockers (embedded players show their own ads). */
+  adTip: boolean
+  onDismissAdTip: () => void
 }
 
 const Icon = ({ d }: { d: string }) => (
@@ -146,8 +155,28 @@ export function SourcePanel(p: Props) {
                   {t('source.returnToRoom')}
                 </button>
               )}
+              <span className="source__chip">
+                <button type="button" className="btn source__small" onClick={p.onReady} disabled={p.readyBusy}>
+                  {t('ready.start')}
+                </button>
+                <Hint text={t('ready.hint')} />
+              </span>
             </div>
           </div>
+        )}
+
+        {p.adTip && (
+          <p className="source__adtip" role="note">
+            <span>
+              {t('source.adTip')}{' '}
+              <a href="https://ublockorigin.com/" target="_blank" rel="noopener noreferrer">
+                {t('source.adTipLink')}
+              </a>
+            </span>
+            <button type="button" className="source__adclose" onClick={p.onDismissAdTip} aria-label={t('source.adTipDismiss')} title={t('source.adTipDismiss')}>
+              ×
+            </button>
+          </p>
         )}
       </div>
 
@@ -205,7 +234,7 @@ export function SourcePanel(p: Props) {
       </div>
 
       <div className="source__section" data-section="list">
-        <WatchList items={p.items} current={p.currentItem} onPlay={p.onPlayItem} onRemove={p.onRemoveItem} onMove={p.onMoveItem} />
+        <WatchList items={p.items} current={p.currentItem} onPlay={p.onPlayItem} onRemove={p.onRemoveItem} onMove={p.onMoveItem} onImport={p.onImport} onProblem={p.onListProblem} />
       </div>
     </section>
   )

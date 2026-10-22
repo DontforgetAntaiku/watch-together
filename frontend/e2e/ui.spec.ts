@@ -32,7 +32,8 @@ test.describe('every page', () => {
   test('switching language changes the text, the page language and is remembered', async ({ browser }) => {
     const p = await newPage(browser)
     await p.goto('/')
-    await p.getByRole('button', { name: 'RU' }).click()
+    await p.getByRole('button', { name: 'EN' }).click()
+    await p.getByRole('button', { name: 'Русский' }).click()
     await expect(p.getByRole('button', { name: 'Создать комнату' })).toBeVisible()
     expect(await p.evaluate(() => document.documentElement.lang)).toBe('ru')
     await p.reload()

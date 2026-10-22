@@ -55,3 +55,20 @@
     @apply w-11;
   }
 }
+.list__tools {
+  @apply mt-2 flex flex-wrap gap-2;
+}
+.list__tool {
+  @apply min-h-9 cursor-pointer rounded-full border border-line bg-transparent px-3 text-sm font-semibold text-muted;
+}
+.list__tool:hover:not(:disabled) {
+  @apply bg-surface-2 text-ink;
+}
+.list__tool:disabled {
+  @apply cursor-default opacity-50;
+}
+@media (pointer: coarse) {
+  .list__tool {
+    @apply min-h-11;
+  }
+}

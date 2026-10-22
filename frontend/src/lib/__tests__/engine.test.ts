@@ -40,7 +40,7 @@ class FakePlayer implements MediaAdapter {
 
 const NOW = 1_000_000
 const room = (over: Partial<RoomState> = {}): RoomState => ({
-  t: 'state', playing: true, pos: 100, at: NOW, rev: 1, by: 'someone-else', n: 2, source: null, media: null, hold: false, waiting: 0, queue: [], ...over,
+  t: 'state', playing: true, pos: 100, at: NOW, rev: 1, by: 'someone-else', n: 2, source: null, media: null, hold: false, waiting: 0, queue: [], check: null, go: null, ...over,
 })
 
 let player: FakePlayer

@@ -121,3 +121,16 @@
 .home__step {
   box-shadow: 0 10px 30px -22px var(--glow-a);
 }
+
+.home__back {
+  @apply m-0 mt-3 flex items-center gap-2;
+}
+.home__backbtn {
+  @apply border-accent-text text-accent-text;
+}
+.home__forget {
+  @apply min-h-11 min-w-11 cursor-pointer rounded-full border-0 bg-transparent text-xl leading-none text-muted;
+}
+.home__forget:hover {
+  @apply text-ink;
+}

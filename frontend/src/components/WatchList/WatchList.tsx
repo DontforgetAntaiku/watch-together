@@ -1,7 +1,10 @@
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { QueueItem } from '../../lib/api'
 import { parseEmbed } from '../../lib/embed'
 import { embedLabel, hostLabel, titleFromUrl } from '../../lib/labels'
+import { exportList, parseList } from '../../lib/listfile'
+import type { ListEntry } from '../../lib/listfile'
 import './WatchList.css'
 
 type Props = {
@@ -11,6 +14,10 @@ type Props = {
   onPlay: (id: string) => void
   onRemove: (id: string) => void
   onMove: (id: string, index: number) => void
+  /** Add the links of a saved list. */
+  onImport: (items: ListEntry[]) => void
+  /** Something about the file was wrong (nothing in it, too big). */
+  onProblem: (message: string) => void
 }
 
 const Icon = ({ d }: { d: string }) => (
@@ -24,14 +31,51 @@ const CLOSE = 'M6.4 5L5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 1
 const BARS = 'M5 9h3v10H5zm5.5-4h3v14h-3zM16 12h3v7h-3z'
 
 /** The room's shared list of links: anyone can add, play, move or remove; the room plays the next one by itself. */
-export function WatchList({ items, current, onPlay, onRemove, onMove }: Props) {
+export function WatchList({ items, current, onPlay, onRemove, onMove, onImport, onProblem }: Props) {
   const { t } = useTranslation()
+  const picker = useRef<HTMLInputElement>(null)
+
+  const save = () => {
+    const url = URL.createObjectURL(new Blob([exportList(items)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'watch-list.json'
+    a.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  const load = async (file: File | undefined) => {
+    if (!file) return
+    if (file.size > 512 * 1024) return onProblem(t('list.badFile'))
+    const found = parseList(await file.text())
+    if (found.length === 0) onProblem(t('list.badFile'))
+    else onImport(found)
+  }
   return (
     <section className="list" aria-labelledby="list-title">
       <h2 id="list-title" className="list__title">
         {t('list.title')}
         {items.length > 0 && <span className="list__count">{items.length}</span>}
       </h2>
+      <div className="list__tools">
+        <button type="button" className="list__tool" onClick={save} disabled={items.length === 0}>
+          {t('list.save')}
+        </button>
+        <button type="button" className="list__tool" onClick={() => picker.current?.click()}>
+          {t('list.load')}
+        </button>
+        <input
+          ref={picker}
+          type="file"
+          className="sr-only"
+          tabIndex={-1}
+          aria-label={t('list.load')}
+          accept=".json,.txt,application/json,text/plain"
+          onChange={(e) => {
+            void load(e.target.files?.[0])
+            e.target.value = ''
+          }}
+        />
+      </div>
       {items.length === 0 ? (
         <p className="list__empty">{t('list.empty')}</p>
       ) : (

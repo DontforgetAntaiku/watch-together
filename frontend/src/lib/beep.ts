@@ -1,12 +1,12 @@
 /**
  * A short cue for a page the person is not looking at. The pause alert is three soft notes: easy to notice, not loud;
- * the resume cue is an even quieter rising pair. Never throws.
+ * the resume cue is an even quieter rising pair, and a ready check is asked with a short rising pair. Never throws.
  */
-export function beep(kind: 'pause' | 'resume') {
+export function beep(kind: 'pause' | 'resume' | 'ask') {
   try {
     const ctx = new AudioContext()
     void ctx.resume()
-    const notes = kind === 'pause' ? [880, 660, 440] : [440, 660]
+    const notes = kind === 'pause' ? [880, 660, 440] : kind === 'ask' ? [660, 880] : [440, 660]
     const volume = kind === 'pause' ? 0.1 : 0.05
     notes.forEach((hz, i) => {
       const start = ctx.currentTime + i * 0.2

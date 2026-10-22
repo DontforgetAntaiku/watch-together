@@ -130,6 +130,6 @@ export async function untranslated(page: Page): Promise<string[]> {
     }
     return out
   })
-  const allowed = /^(EN|RU|English|Русский|Watch Together|DontforgetAntaiku|YouTube|Vimeo|Twitch|Streamable|[A-Z0-9]{6}|[\d:.,/ \-+−·×]+|i|localhost|127\.0\.0\.1|clip|big|short\d|does-not-exist|[a-z0-9_-]+\.(webm|mp4))$/i
+  const allowed = /^(EN|RU|UK|DE|ES|FR|PT|PL|English|Русский|Українська|Deutsch|Español|Français|Português|Polski|Watch Together|DontforgetAntaiku|YouTube|Vimeo|Twitch|Streamable|[A-Z0-9]{6}|[\d:.,/ \-+−·×]+|i|localhost|127\.0\.0\.1|clip|big|short\d|does-not-exist|[a-z0-9_-]+\.(webm|mp4))$/i
   return [...new Set(texts.filter((t) => !/[А-Яа-яЁё]/.test(t) && !allowed.test(t)))]
 }

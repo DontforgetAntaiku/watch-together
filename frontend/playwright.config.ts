@@ -25,7 +25,7 @@ export default defineConfig({
     {
       command: 'cd ../backend && uv run python -m uvicorn main:app --host 127.0.0.1 --port 8031',
       url: 'http://127.0.0.1:8031/api/health',
-      env: { BACKEND_DEBUG: 'False', CREATE_PER_MINUTE: '10000', MSG_PER_SECOND: '200', MSG_BURST: '600' },
+      env: { BACKEND_DEBUG: 'False', CREATE_PER_MINUTE: '10000', ROOMS_PER_IP: '10000', LOOKUP_PER_MINUTE: '100000', STREAMS_PER_IP: '10000', MSG_PER_SECOND: '200', MSG_BURST: '600' },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

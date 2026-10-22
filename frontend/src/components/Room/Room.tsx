@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { errorText, getConfig, resolvePage } from '../../lib/api'
+import { errorText, getConfig, resolvePage, resolvePlaylist } from '../../lib/api'
+import type { ListEntry } from '../../lib/listfile'
+import { rememberRoom } from '../../lib/lastRoom'
 import { formatTime } from '../../lib/fmt'
 import { titleFromUrl } from '../../lib/labels'
 import { fromResolved, lookupFailed, pickQuality, stepDown, toResolving } from '../../lib/page'
@@ -10,14 +12,17 @@ import { fromRoom, labelFor } from '../../lib/source'
 import { beep } from '../../lib/beep'
 import { fetchTitle } from '../../lib/titles'
 import type { Source } from '../../lib/source'
-import { normalizeUrl } from '../../lib/url'
+import { isPlaylistUrl, normalizeUrl, splitLinks } from '../../lib/url'
 import { useRoom } from '../../lib/useRoom'
+import { TABS } from '../../lib/tabs'
+import type { Tab } from '../../lib/tabs'
+import { useSwipe } from '../../lib/useSwipe'
 import { useSharing } from '../../lib/useSharing'
 import { Header } from '../Header/Header'
 import { Player } from '../Player/Player'
+import { ReadyCheck } from '../ReadyCheck/ReadyCheck'
 import { RoomCode } from '../RoomCode/RoomCode'
 import { RoomTabs } from '../RoomTabs/RoomTabs'
-import type { Tab } from '../RoomTabs/RoomTabs'
 import { SourcePanel } from '../SourcePanel/SourcePanel'
 import './Room.css'
 
@@ -28,6 +33,15 @@ export function Room({ code }: { code: string }) {
   const [notice, setNotice] = useState<string | null>(null)
   const [canResolve, setCanResolve] = useState(false)
   const [tab, setTab] = useState<Tab>('add')
+  const [dir, setDir] = useState<'next' | 'prev' | ''>('')
+  const grid = useRef<HTMLDivElement | null>(null)
+  const [adTipOff, setAdTipOff] = useState(() => {
+    try {
+      return localStorage.getItem('wt.adtip') === '1'
+    } catch {
+      return false
+    }
+  })
   const video = useRef<HTMLVideoElement | null>(null)
   const objectUrl = useRef<string | null>(null)
   const sourceRef = useRef<Source | null>(null)
@@ -36,6 +50,17 @@ export function Room({ code }: { code: string }) {
   useEffect(() => {
     sourceRef.current = source
   }, [source])
+
+  // A flick to the left or right moves to the next or previous tab (phones, portrait); the bar at the bottom still works.
+  const swipeTab = useCallback((step: 1 | -1) => {
+    setDir(step === 1 ? 'next' : 'prev')
+    setTab((cur) => TABS[TABS.indexOf(cur) + step] ?? cur)
+  }, [])
+  useSwipe(grid, swipeTab, '.room__stage')
+  const pickTab = useCallback((next: Tab) => {
+    setDir('')
+    setTab(next)
+  }, [])
 
   // A short confirmation that fades by itself (errors stay until something else happens).
   const flashTimer = useRef<number | undefined>(undefined)
@@ -47,6 +72,11 @@ export function Room({ code }: { code: string }) {
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
 
   const sharing = useSharing({ send, onSignal, state, myId, connection, video, notify: setNotice })
+
+  // This device remembers the room, so the home page can offer a way back.
+  useEffect(() => {
+    if (connection === 'live') rememberRoom(code)
+  }, [connection, code])
 
   useEffect(() => {
     let alive = true
@@ -203,13 +233,52 @@ export function Room({ code }: { code: string }) {
     if (!url) setNotice(t('source.badLink'))
     return url
   }
+  // Many links at once (a pasted batch, a saved list, a playlist): one message, the room adds what fits.
+  const importLinks = useCallback(
+    (items: ListEntry[], playFirst: boolean) => {
+      const list = items.slice(0, 50)
+      if (list.length === 0) return
+      if (playFirst) send({ t: 'queue_add', url: list[0].url, play: true, ...(list[0].title ? { title: list[0].title } : {}) })
+      send({ t: 'queue_import', items: list })
+      flash(t('list.imported', { count: list.length }))
+    },
+    [send, flash, t],
+  )
+  const withTitles = (links: string[]): ListEntry[] => links.map((url) => ({ url, ...(titleFromUrl(url) ? { title: titleFromUrl(url) as string } : {}) }))
+
+  /** A playlist page: ask the server for its videos (only when its lookup tool is on). */
+  const loadPlaylist = async (raw: string, playFirst: boolean) => {
+    if (!canResolve) {
+      setNotice(t('list.needsLookup'))
+      return
+    }
+    flash(t('list.loadingPlaylist'))
+    try {
+      const { items } = await resolvePlaylist(raw)
+      importLinks(items.map((i) => ({ url: i.url, ...(i.title ? { title: i.title } : {}) })), playFirst)
+    } catch (err) {
+      setNotice(errorText(err))
+    }
+  }
   const onPlay = (raw: string) => {
+    const links = splitLinks(raw)
+    if (links.length > 1) return importLinks(withTitles(links), true)
+    if (links.length === 1 && isPlaylistUrl(links[0])) return void loadPlaylist(links[0], true)
     const url = check(raw)
     if (!url) return
     setNotice(null)
     send({ t: 'queue_add', url, play: true, ...(titleFromUrl(url) ? { title: titleFromUrl(url) as string } : {}) })
   }
   const onAdd = (raw: string) => {
+    const links = splitLinks(raw)
+    if (links.length > 1) {
+      importLinks(withTitles(links), false)
+      return true
+    }
+    if (links.length === 1 && isPlaylistUrl(links[0])) {
+      void loadPlaylist(links[0], false)
+      return true
+    }
     const url = check(raw)
     if (!url) return false
     send({ t: 'queue_add', url, ...(titleFromUrl(url) ? { title: titleFromUrl(url) as string } : {}) })
@@ -252,7 +321,7 @@ export function Room({ code }: { code: string }) {
   const canReturn = (source?.kind === 'file' || source?.kind === 'screen') && sharing.sharing === null && !!roomSource && roomSource.kind === 'link'
   const cutsMatter = source?.kind === 'file' || (source?.kind === 'page' && (source.how === 'direct' || source.how === 'resolved'))
   return (
-    <div className="room" data-tab={tab}>
+    <div className="room" data-tab={tab} data-dir={dir || undefined}>
       <Header>
         <p className="room__status" data-state={connection} role="status">
           {connection === 'live' && t('room.people', { count: members })}
@@ -262,7 +331,7 @@ export function Room({ code }: { code: string }) {
       </Header>
 
       <main className="room__main">
-        <div className="room__grid">
+        <div className="room__grid" ref={grid}>
           <div className="room__info">
             <RoomCode code={code} />
           </div>
@@ -290,6 +359,7 @@ export function Room({ code }: { code: string }) {
               }}
               sharingViewers={sharing.viewers}
             />
+            <ReadyCheck state={state} clock={clock} myId={myId} send={send} />
           </div>
           <SourcePanel
             current={source}
@@ -320,10 +390,23 @@ export function Room({ code }: { code: string }) {
             onPlayItem={(item) => send({ t: 'queue_play', item })}
             onRemoveItem={(item) => send({ t: 'queue_remove', item })}
             onMoveItem={(item, index) => send({ t: 'queue_move', item, index })}
+            onImport={(items) => importLinks(items, false)}
+            onListProblem={setNotice}
+            onReady={() => send({ t: 'ready_start' })}
+            readyBusy={!!state?.check || state?.go != null}
+            adTip={!adTipOff && source?.kind === 'page' && source.how === 'embed'}
+            onDismissAdTip={() => {
+              setAdTipOff(true)
+              try {
+                localStorage.setItem('wt.adtip', '1')
+              } catch {
+                /* it just comes back next time */
+              }
+            }}
           />
         </div>
       </main>
-      <RoomTabs tab={tab} onTab={setTab} count={state?.queue.length ?? 0} />
+      <RoomTabs tab={tab} onTab={pickTab} count={state?.queue.length ?? 0} />
     </div>
   )
 }

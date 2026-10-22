@@ -36,6 +36,10 @@ export type RoomState = {
   waiting: number
   /** The shared watch list. */
   queue: QueueItem[]
+  /** A ready check in progress: who asked, who has said yes, and when it runs out (server time, ms). */
+  check: { by: string; ready: string[]; until: number } | null
+  /** The countdown ends and everybody starts at this server time (ms). */
+  go: number | null
 }
 
 export type ClientMessage =
@@ -47,6 +51,8 @@ export type ClientMessage =
   | { t: 'queue_remove' | 'queue_play' | 'queue_next'; item: string }
   | { t: 'queue_move'; item: string; index: number }
   | { t: 'queue_title'; item: string; title: string }
+  | { t: 'queue_import'; items: { url: string; title?: string }[] }
+  | { t: 'ready_start' | 'ready_yes' | 'ready_cancel' }
   | { t: 'signal'; to: string; sig: 'offer' | 'answer' | 'bye' | 'quality'; sdp?: string }
 
 export class ApiError extends Error {
@@ -102,6 +108,10 @@ export function getConfig(): Promise<Config> {
 
 export const resolvePage = (url: string) =>
   call<Resolved>('/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+
+/** The links of a playlist (needs the server's lookup tool). */
+export const resolvePlaylist = (url: string) =>
+  call<{ items: { url: string; title: string | null }[] }>('/playlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
 
 export const createRoom = () => call<{ code: string }>('/rooms', { method: 'POST' })
 export const roomInfo = (code: string) => call<{ code: string; n: number }>(`/rooms/${code}`)

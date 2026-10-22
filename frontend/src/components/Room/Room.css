@@ -39,6 +39,7 @@
   grid-template-columns: minmax(0, 1fr);
 }
 .room__stage {
+  @apply relative;
   order: 1;
 }
 .room__warn {
@@ -132,5 +133,29 @@
   }
   .room[data-tab] .room__info {
     display: block !important;
+  }
+}
+
+/* A swipe slides the new section in from the side it came from. */
+@media (max-width: 999px) and (orientation: portrait) and (prefers-reduced-motion: no-preference) {
+  .room[data-dir='next'] .source__section,
+  .room[data-dir='next'] .room__info {
+    animation: tab-in-next 0.22s ease-out;
+  }
+  .room[data-dir='prev'] .source__section,
+  .room[data-dir='prev'] .room__info {
+    animation: tab-in-prev 0.22s ease-out;
+  }
+}
+@keyframes tab-in-next {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes tab-in-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
   }
 }

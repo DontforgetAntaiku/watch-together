@@ -1,0 +1,48 @@
+@reference "../../index.css";
+
+.ready {
+  @apply absolute inset-0 z-30 flex items-center justify-center p-3;
+  background: rgb(5 8 18 / 0.72);
+  backdrop-filter: blur(3px);
+}
+.ready__card {
+  @apply grid max-w-full justify-items-center gap-2 rounded-2xl border border-line bg-surface px-5 py-4 text-center;
+  box-shadow: 0 18px 50px -20px rgb(0 0 0 / 0.7);
+}
+.ready__title {
+  @apply m-0 text-lg font-semibold;
+}
+.ready__small {
+  @apply m-0 text-sm text-muted;
+}
+.ready__actions {
+  @apply mt-1 flex flex-wrap justify-center gap-2;
+}
+.ready__btn {
+  @apply min-h-11;
+}
+.ready__count {
+  @apply m-0 text-6xl font-bold text-accent-text;
+  line-height: 1;
+  animation: ready-pop 0.5s ease-out;
+}
+@keyframes ready-pop {
+  from {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ready__count {
+    animation: none;
+  }
+}
+/* A small player (a phone): a tighter card. */
+@media (max-width: 499px) {
+  .ready__card {
+    @apply gap-1 px-4 py-3;
+  }
+  .ready__count {
+    @apply text-5xl;
+  }
+}

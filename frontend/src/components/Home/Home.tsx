@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FormEvent } from 'react'
-import { createRoom, errorText, parseCode, roomInfo } from '../../lib/api'
+import { ApiError, createRoom, errorText, parseCode, roomInfo } from '../../lib/api'
+import { forgetRoom, lastRoom } from '../../lib/lastRoom'
 import { go } from '../../lib/router'
 import { InstallButton } from '../InstallButton/InstallButton'
 import { Header } from '../Header/Header'
@@ -13,6 +14,23 @@ export function Home() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [value, setValue] = useState('')
+  const [back, setBack] = useState<string | null>(null)
+
+  // The room this device was in a moment ago, if it is still open.
+  useEffect(() => {
+    const code = lastRoom()
+    if (!code) return
+    let alive = true
+    roomInfo(code).then(
+      () => alive && setBack(code),
+      (err) => {
+        if (err instanceof ApiError && err.status === 404) forgetRoom() // gone for good; anything else may pass, keep it
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const create = async () => {
     setBusy(true)
@@ -76,6 +94,25 @@ export function Home() {
               </button>
             </form>
           </div>
+          {back && (
+            <p className="home__back">
+              <button type="button" className="btn home__backbtn" onClick={() => go(`/r/${back}`)}>
+                {t('home.backTo', { code: back })}
+              </button>
+              <button
+                type="button"
+                className="home__forget"
+                onClick={() => {
+                  forgetRoom()
+                  setBack(null)
+                }}
+                aria-label={t('home.forget')}
+                title={t('home.forget')}
+              >
+                ×
+              </button>
+            </p>
+          )}
           <ul className="home__chips">
             {['sync', 'sources', 'free'].map((k) => (
               <li key={k} className="home__chip">

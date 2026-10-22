@@ -64,7 +64,8 @@ test.describe('nobody is left loading forever', () => {
     await expect
       .poll(async () => (await seen(pages[1]))!.t, { timeout: 60_000, intervals: [2000] })
       .toBeGreaterThan(21)
-    for (const p of pages) expect((await seen(p))!.spinner).toBe(false)
+    // A spinner may show for a moment while the slow person is still being waited for; it must not stay.
+    await expect.poll(async () => (await Promise.all(pages.map(seen))).some((s) => s?.spinner), { timeout: 30_000 }).toBe(false)
   })
 
   test('a short loss of the network does not break the room', async ({ browser }) => {

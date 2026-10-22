@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
+import { TABS } from '../../lib/tabs'
+import type { Tab } from '../../lib/tabs'
 import './RoomTabs.css'
 
-export type Tab = 'add' | 'list' | 'share' | 'room'
 
 type Props = {
   tab: Tab
@@ -28,7 +29,7 @@ export function RoomTabs({ tab, onTab, count }: Props) {
   return (
     <nav className="tabs" aria-label={t('tabs.label')}>
       <div className="tabs__bar" role="tablist">
-        {(['add', 'list', 'share', 'room'] as const).map((id) => (
+        {TABS.map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className="tabs__tab" data-tab={id} onClick={() => onTab(id)}>
             <span className="tabs__icon">
               <Icon d={ICONS[id]} />
