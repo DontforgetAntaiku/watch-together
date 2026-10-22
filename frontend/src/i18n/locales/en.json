@@ -21,7 +21,9 @@
       "sync": "Frame-accurate sync",
       "sources": "YouTube · Vimeo · Twitch · files · tabs",
       "free": "Free and open source"
-    }
+    },
+    "backTo": "Back to room {{code}}",
+    "forget": "Forget this room"
   },
   "footer": {
     "credit": "Free and open source. Built by"
@@ -106,7 +108,10 @@
     "lookup": "Try another way",
     "lookupHint": "Asks this server to find the video behind the page (it runs yt-dlp). Helps with some sites, but the result may refuse to play for you or your friends: many hosts tie links to the server's address or to their own site.",
     "returnToRoom": "Back to the room's video",
-    "shareFileTip": "The file is only on your device. Press \"Share this file\" under the video to let friends watch it through your browser."
+    "shareFileTip": "The file is only on your device. Press \"Share this file\" under the video to let friends watch it through your browser.",
+    "adTip": "Ads in the player? An ad blocker such as uBlock Origin works inside embedded players too.",
+    "adTipLink": "Get uBlock Origin",
+    "adTipDismiss": "Hide this tip"
   },
   "player": {
     "emptyTitle": "No video yet",
@@ -236,7 +241,14 @@
     "play": "Play {{name}}",
     "up": "Move {{name}} up",
     "remove": "Remove {{name}}",
-    "added": "Added to the watch list."
+    "added": "Added to the watch list.",
+    "save": "Save list",
+    "load": "Load list",
+    "badFile": "That file has no links I can use.",
+    "imported_one": "Added {{count}} link to the watch list.",
+    "imported_other": "Added {{count}} links to the watch list.",
+    "needsLookup": "A playlist page needs this server's lookup tool, which is off here. Paste the links one by one, or several at once.",
+    "loadingPlaylist": "Loading the playlist…"
   },
   "tabs": {
     "label": "Sections",
@@ -244,5 +256,15 @@
     "list": "List",
     "share": "Share",
     "room": "Room"
+  },
+  "ready": {
+    "start": "Ready check",
+    "hint": "Asks everyone in the room whether they are ready, then counts down 3, 2, 1 and starts the video for all at once.",
+    "title": "Ready?",
+    "count": "{{ready}} of {{total}} ready",
+    "yes": "I'm ready",
+    "cancel": "Cancel",
+    "starting": "Starting in…",
+    "go": "Go!"
   }
 }

@@ -1,11 +1,30 @@
 @reference "../../index.css";
 
 .lang {
-  @apply inline-flex rounded-full border border-line bg-surface p-0.5;
+  @apply relative inline-flex;
 }
 .lang__btn {
-  @apply min-h-10 min-w-11 cursor-pointer rounded-full border-0 bg-transparent px-3 text-sm font-semibold text-muted;
+  @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1 rounded-full border border-line bg-surface px-3 text-sm font-semibold text-ink;
 }
-.lang__btn[aria-pressed='true'] {
-  @apply bg-accent text-accent-ink;
+.lang__btn:hover,
+.lang__btn[aria-expanded='true'] {
+  @apply bg-surface-2;
+}
+.lang__caret {
+  @apply h-3 w-3 text-muted;
+}
+.lang__menu {
+  @apply absolute right-0 z-50 m-0 grid list-none gap-0.5 rounded-2xl border border-line bg-surface p-1;
+  top: calc(100% + 0.4rem);
+  min-width: 11rem;
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
+}
+.lang__item {
+  @apply min-h-11 w-full cursor-pointer rounded-xl border-0 bg-transparent px-3 text-left text-base text-ink;
+}
+.lang__item:hover {
+  @apply bg-surface-2;
+}
+.lang__item[aria-pressed='true'] {
+  @apply bg-accent font-semibold text-accent-ink;
 }

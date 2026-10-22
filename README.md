@@ -9,7 +9,7 @@ and the server only passes tiny play, pause and seek messages.
 
 Free · Open source · No account · No install · Installable app (PWA) · English and Russian · Mobile friendly
 
-<img src="docs/room-desktop-light.png" alt="Watch Together — a room, light theme" width="780">
+<img src="docs/room-desktop-light-v2.png" alt="Watch Together — a room, light theme" width="780">
 
 </div>
 
@@ -29,18 +29,22 @@ forwards changes, and relays the few messages two browsers need to find each oth
 A single small VPS can host thousands of rooms.
 
 <div align="center">
-<img src="docs/home-desktop-dark.png" alt="Home page, dark theme" width="520">
+<img src="docs/ready-check-desktop-dark.png" alt="A ready check: everybody said yes and the 3-2-1 is running over the player" width="520">
 &nbsp;
-<img src="docs/room-phone-dark.png" alt="A room on a phone: the pinned player, the link field and the tab bar" width="210">
+<img src="docs/home-desktop-dark-v2.png" alt="Home page, dark theme" width="520">
 &nbsp;
-<img src="docs/home-phone-light.png" alt="Home on a phone, light theme" width="210">
+<img src="docs/room-phone-dark-v2.png" alt="A room on a phone: the pinned player, the link field and the tab bar" width="210">
 &nbsp;
-<img src="docs/room-phone-list-light.png" alt="The watch list on a phone, with the floating tab bar" width="210">
+<img src="docs/home-phone-light-v2.png" alt="Home on a phone, light theme" width="210">
+&nbsp;
+<img src="docs/room-phone-list-light-v2.png" alt="The watch list on a phone, with the floating tab bar" width="210">
 </div>
 
 ## Features
 
 - **A shared watch list** — every link you play is kept in the room's list. Anyone can add (`+`), play, move up or remove an entry, and the room plays the next one by itself when a video ends.
+- **Ready check** — press *Ready check* and everybody gets "Ready?" over the player; when all of them have said yes, a 3-2-1 runs and the video starts for everybody at the same instant. It ends by itself after 45 s, anyone can cancel it, and anybody pressing play or pause decides for the room.
+- **Save, load and import lists** — *Save list* downloads the watch list as a small JSON file and *Load list* adds it (or any text file with one link per line) to any room. Pasting several links at once adds them all. With the lookup tool on, pasting a **YouTube playlist** link adds its videos (up to 50).
 - **The room waits for slow connections** — if one person is still loading, everybody pauses at the same spot and the others see "Waiting for 1 person to load…"; nobody is dragged around by corrective seeks, so nobody is left loading forever (with limits, so one stuck player cannot freeze a room).
 - **One button** — Play tries the platform's embedded player first, then the address as a plain video, then the server-side lookup; if an embedded player works, a small *Try another way* button offers the lookup anyway (for example for a higher resolution).
 - **Rooms without accounts** — short code or invite link; rooms live in memory and disappear 30 minutes after the last person leaves.
@@ -61,7 +65,10 @@ A single small VPS can host thousands of rooms.
 - **Offer a link** — optionally offer your link to the room; others get a one-click "Use it" button.
 - **Phone-first layout** — pinned player while you scroll, big touch targets, safe-area aware, landscape mode that fits the screen,
   the system **Share** sheet for invites, and a source panel that tucks away once a video is loaded.
-- **English and Russian** — follows the browser language, switch any time; easy to add more (see below).
+- **Eight languages** — English, Русский, Українська, Deutsch, Español, Français, Português and Polski. Follows the browser language, switch any time; a test checks that every translation has every text. Easy to add more (see below).
+- **Swipes on a phone** — flick left or right below the player to move between the *Play*, *List*, *Share* and *Room* tabs (the bar at the bottom still works; the player, text fields and sliders keep their own touches).
+- **Back to your room** — the home page offers the room this device was in during the last day, if it is still open (remembered only on this device).
+- **Ad blocker tip** — platform players (YouTube and others) show their own ads; a dismissible tip points to [uBlock Origin](https://ublockorigin.com/), which works inside embedded players.
 - **Installable app (PWA)** — an **Install** button (Chrome, Edge, Android) or *Share → Add to Home Screen* (iPhone, iPad) puts it on your home screen or desktop, in its own window. The page shell is cached, so the app opens instantly and even offline (a room itself needs the connection). A new version offers a **Reload** button and never reloads by itself, so it can't cut a video.
 - **Light and dark theme** — follows the system.
 - **Private by design** — no analytics, no cookies, no accounts, no CDN fonts. Third parties are contacted only when you use them:
@@ -145,7 +152,7 @@ cd frontend && npm run test:e2e                     # real browsers: needs ffmpe
 
 The end-to-end suite starts the backend and the frontend itself, generates small WebM videos with ffmpeg, and drives several Chromium windows against them. It covers
 **+10 s / -10 s** (many presses, at the start and the end of a video, while paused, with the keyboard), **changing the time by hand** (code, the seek bar, the keyboard, past the end, many random seeks, joining in the middle),
-**loading** (a throttled connection must make the room wait instead of chasing it, recovery afterwards, a lost network, a missing file), the **watch list**, **sharing a file**, translations, phone layouts (including that the "i" hint bubbles stay on the screen and never widen the page) and the link-preview tags.
+**loading** (a throttled connection must make the room wait instead of chasing it, recovery afterwards, a lost network, a missing file), the **watch list** (pasting several links, saving and loading a list), the **ready check**, **sharing a file**, **swipes between tabs**, the language menu and every translation, the "back to your room" shortcut, the ad-blocker tip, phone layouts (including that the "i" hint bubbles stay on the screen and never widen the page) and the link-preview tags.
 Set `CHROMIUM_PATH` to use an installed Chromium, or run `npx playwright install chromium` once.
 
 ## Docker
@@ -171,7 +178,69 @@ Rebuild only the site with `docker compose run --rm --build frontend-builder`.
 | `MAX_MEMBERS` | `30` | People per room |
 | `EMPTY_ROOM_TTL` | `1800` | Seconds an empty room is kept |
 | `CREATE_PER_MINUTE` | `20` | Room creations per IP per minute |
+| `ROOMS_PER_IP` | `10` | Rooms one address can keep alive at once |
+| `STREAMS_PER_IP` | `20` | Open event streams (people in rooms) per address; raise it for a school or an office behind one address |
+| `LOOKUP_PER_MINUTE` | `60` | Room-code lookups per IP per minute (codes cannot be guessed at full speed) |
+| `MSG_PER_SECOND` / `MSG_BURST` | `10` / `30` | Messages one member can send (token bucket) |
 | `HOST_UID` / `HOST_GID` | `1000` | Owner of the generated files |
+
+## Self-hosting
+
+Everything you need to run your own copy. It is one small container plus a folder of static files, so a 1 vCPU / 512 MB server is plenty for a few dozen rooms (the video never passes through it).
+
+**1. Get a server and a domain.** Any Linux machine with Docker, and a name such as `watch.example.com` pointing at it. HTTPS is required (service worker, installing, screen sharing).
+
+**2. Build.**
+
+```bash
+git clone https://github.com/DontforgetAntaiku/watch-together.git && cd watch-together
+cp .env.example .env
+# edit .env: BACKEND_DEBUG=False, FRONTEND_DEBUG=False, SITE_URL=https://watch.example.com, ALLOWED_ORIGINS=https://watch.example.com
+docker compose up -d --build
+```
+
+This starts the API on `127.0.0.1:8000` and writes the website into `./deploy` (the `frontend-builder` container exits when it is done; that is normal).
+
+**3. Put a web server with HTTPS in front.** It serves `./deploy` and forwards `/api/` to the backend. With [Caddy](https://caddyserver.com/) (gets the certificate by itself):
+
+```caddyfile
+watch.example.com {
+    root * /srv/watch-together/deploy
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000 {
+            flush_interval -1          # live updates are Server-Sent Events: never buffer them
+        }
+    }
+    handle {
+        try_files {path} /index.html   # rooms live at /r/CODE
+        file_server
+    }
+    @nocache path /sw.js /index.html /manifest.webmanifest
+    header @nocache Cache-Control "no-cache"
+    header /assets/* Cache-Control "public, max-age=31536000, immutable"
+}
+```
+
+With nginx use the `location /api/` block from [Deployment](#deployment) (add `proxy_buffering off;`), a `try_files $uri /index.html;` fallback, and the same cache headers. Behind another proxy or CDN, make sure it does not buffer or time out responses that stay open (the server sends a `ping` every 15 s so a stream is never idle for long).
+
+**4. Check it.**
+
+```bash
+curl -s https://watch.example.com/api/health        # {"status":"ok"}
+curl -sN https://watch.example.com/api/time          # the server clock
+```
+
+Open the site, create a room, join it from a phone, play a link. If the page loads but rooms say "Connection lost", the proxy is buffering or not forwarding `/api/`.
+
+**Updating.** `git pull && docker compose up -d --build`. Rooms live in memory, so an update empties them (people just create a new one); the browser app updates itself on the next visit and asks before reloading. There is nothing to back up: no database, no uploaded files, no accounts.
+
+**Running it for a school, an office or a big group.** People behind one address share its limits (`STREAMS_PER_IP`, `ROOMS_PER_IP`, `CREATE_PER_MINUTE`): raise them in `.env`. Keep a **single backend worker** (rooms are in one process's memory). `MAX_MEMBERS` is the people-per-room cap.
+
+**Strict networks.** Peer-to-peer sharing of a file or tab uses a STUN server and sometimes fails behind corporate firewalls or some mobile networks; see [your own STUN / TURN servers](#your-own-stun--turn-servers).
+
+**Page-link lookup (yt-dlp)** is off by default; read [the security notes](#optional-resolve-a-page-link-yt-dlp) before switching `RESOLVER_ENABLED` on. It also powers playlist import.
+
+**Security checklist:** `BACKEND_DEBUG=False`; `ALLOWED_ORIGINS` set to your site; backend reachable only on `127.0.0.1`; HTTPS only; the proxy passes the real address in `X-Real-IP` (the limits are per address); keep the image updated (`docker compose build --pull`).
 
 ## Deployment
 
@@ -209,7 +278,8 @@ Everything is under `/api`:
 | `GET /rooms/{code}/events` | **SSE** stream: `hello` (your id and token), a full `state` on every change, `signal` messages addressed to you, and a `ping` every 15 s |
 | `GET /config` | What this server offers (`{ "resolver": false }`) |
 | `POST /resolve` | Only when switched on: `{ "url" }` → one direct address (`404` otherwise) |
-| `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `queue_add` (with `play`), `queue_play`, `queue_next`, `queue_move`, `queue_remove`, `queue_title` for the watch list; `buffer` (`on`) while this player waits for data; `media` (the length of my copy); `source` to share a file or tab; `signal` to talk to one member |
+| `POST /playlist` | Only when switched on: `{ "url" }` of a playlist page → `{ "items": [{ url, title }] }`, at most 50 |
+| `POST /rooms/{code}/msg` | `play` / `pause` / `seek` with `pos`, `ts`; `queue_add` (with `play`), `queue_play`, `queue_next`, `queue_move`, `queue_remove`, `queue_title`, `queue_import` (up to 50 `{url, title}` at once) for the watch list; `ready_start`, `ready_yes`, `ready_cancel` for the ready check; `buffer` (`on`) while this player waits for data; `media` (the length of my copy); `source` to share a file or tab; `signal` to talk to one member |
 | `GET /time` | Server clock, used to align every client |
 | `GET /health` | Liveness |
 
@@ -223,6 +293,8 @@ The room state is one snapshot, so it is idempotent and a slow client simply get
 `source` is what the room offers to watch: `link` (a URL), `embed` (a `provider` — `youtube`, `vimeo`, `twitch`, `streamable` — plus a strictly validated `id`), or `p2p` (a name, a duration or `live`, and who is sharing).
 `media` is set when people who opened their own copy report lengths that differ by more than a second (`{ lo, hi, n }`).
 A `p2p` offer disappears when its owner leaves.
+
+**Ready check.** `ready_start` pauses the room where it stands and sets `check` (`{ by, ready: [ids], until }`). Everybody who has not answered sends `ready_yes`; when every current member is in `ready` the server clears `check` and sets `go` (now + 3 s). Clients show the countdown against the server clock; when `go` passes, the server sets `playing` and everybody follows the normal sync. A check ends on `ready_cancel`, after 45 s, or the moment anybody plays, pauses, seeks or changes the video; a member who leaves is no longer waited for.
 
 The room also carries the watch list (`queue`) and whether the playhead is held (`hold`, `waiting`). `source` of kind `link` names the page address everyone plays and the list entry it came from (`item`); each browser decides by itself how to play it.
 
@@ -242,8 +314,8 @@ sharer through the room's `signal` messages, the sharer answers, and the video t
 (up to 8 viewers per sharer, capped at 4 Mbit/s each; a viewer's quality choice is a `signal` of kind `quality` that scales only that viewer's video). Viewers' play, pause and seek go to the room; the sharer's player obeys, so the stream follows.
 The server only relays the offer and answer (size limited, to one named member).
 
-**Abuse limits.** Strict message validation (no unknown fields, finite bounded numbers, `http(s)` links only, fixed shapes for sources),
-a token bucket per connection, a cap on rooms and people per room, per-IP room creation limit, origin check, per-member secret token on every message.
+**Abuse limits.** Strict message validation (no unknown fields, finite bounded numbers, `http(s)` links only, fixed shapes for sources, at most 50 list entries per import),
+a token bucket per connection, a cap on rooms and people per room, and per address (`IP`, from `X-Real-IP`): room creations per minute, rooms alive at once, open event streams, code lookups per minute and (when the lookup tool is on) lookups per minute, all in memory and forgotten on their own. Origin check and a per-member secret token on every message.
 There is no personal data: no accounts, no stored IPs beyond a short in-memory rate-limit window.
 
 ## Project structure
@@ -358,9 +430,12 @@ The worker is registered in production builds only, so `npm run dev` never cache
 
 ## Adding a language
 
+Eight languages ship with the app. To add another:
+
 1. Copy [`frontend/src/i18n/locales/en.json`](frontend/src/i18n/locales/en.json) to `xx.json` and translate every value (keep the keys;
    plural keys end in `_one`, `_few`, `_many`, `_other` as the language needs).
-2. In [`frontend/src/i18n/index.ts`](frontend/src/i18n/index.ts) import the file, add it to `resources`, `supportedLngs` and `LANGUAGES`.
+2. In [`frontend/src/i18n/index.ts`](frontend/src/i18n/index.ts) import the file, add it to `resources` and `LANGUAGES` (the name is shown in its own language).
+3. Add it to the list in [`frontend/src/lib/__tests__/i18n.test.ts`](frontend/src/lib/__tests__/i18n.test.ts): the test fails when a text or a `{{placeholder}}` is missing.
 
 ## Privacy
 
