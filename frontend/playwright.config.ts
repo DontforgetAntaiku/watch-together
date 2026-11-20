@@ -18,7 +18,7 @@ export default defineConfig({
     serviceWorkers: 'block',
     launchOptions: {
       executablePath: process.env.CHROMIUM_PATH || undefined,
-      args: ['--autoplay-policy=no-user-gesture-required', '--disable-features=WebRtcHideLocalIpsWithMdns', '--no-sandbox'],
+      args: ['--autoplay-policy=no-user-gesture-required', '--disable-features=WebRtcHideLocalIpsWithMdns', '--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
     },
   },
   webServer: [

@@ -25,8 +25,12 @@
     "backTo": "Voltar para a sala {{code}}",
     "forget": "Esquecer esta sala"
   },
-  "footer": { "credit": "Grátis e de código aberto. Feito por" },
-  "lang": { "label": "Idioma" },
+  "footer": {
+    "credit": "Grátis e de código aberto. Feito por"
+  },
+  "lang": {
+    "label": "Idioma"
+  },
   "room": {
     "people_one": "{{count}} pessoa aqui",
     "people_other": "{{count}} pessoas aqui",
@@ -200,7 +204,9 @@
     "remove": "Remover",
     "on": "Adicionando som de: {{name}}",
     "denied": "Não foi possível listar as entradas de som. Permita o acesso ao microfone neste site (ele só serve para alcançar o dispositivo que você escolher).",
-    "failed": "Não foi possível abrir essa entrada."
+    "failed": "Não foi possível abrir essa entrada.",
+    "silent": "Esta entrada está em silêncio. Verifique se não está sem som e se é a certa, ou tente outra.",
+    "suspended": "O som não conseguiu iniciar neste navegador. Aperte «Adicionar» de novo, ou recarregue a página e compartilhe outra vez."
   },
   "embed": {
     "label": {
@@ -228,7 +234,9 @@
     "reload": "Recarregar",
     "later": "Depois"
   },
-  "hint": { "more": "Mais informações" },
+  "hint": {
+    "more": "Mais informações"
+  },
   "list": {
     "title": "Lista para assistir",
     "empty": "Nada por aqui ainda. Cole um link e aperte Reproduzir, ou use + para deixá-lo na fila. A sala reproduz o próximo quando um vídeo termina.",

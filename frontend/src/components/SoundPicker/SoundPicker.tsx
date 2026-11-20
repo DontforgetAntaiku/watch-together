@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AudioInput } from '../../lib/audioMix'
+import { Select } from '../Select/Select'
 import './SoundPicker.css'
 
 type Props = {
@@ -32,16 +33,9 @@ export function SoundPicker({ devices, active, busy, error, onList, onUse, onSto
         </div>
       ) : devices ? (
         <div className="sound__row">
-          <label className="sr-only" htmlFor="sound-device">
-            {t('sound.device')}
-          </label>
-          <select id="sound-device" className="field sound__select" value={picked} onChange={(e) => setChoice(e.target.value)}>
-            {devices.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
-            ))}
-          </select>
+          <div className="sound__select">
+            <Select id="sound-device" label={t('sound.device')} value={picked} options={devices.map((d) => ({ value: d.id, label: d.label }))} onChange={setChoice} />
+          </div>
           <button type="button" className="btn btn--primary sound__btn" disabled={!picked || busy} onClick={() => onUse(picked)}>
             {t('sound.add')}
           </button>

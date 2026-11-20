@@ -25,8 +25,12 @@
     "backTo": "Retour au salon {{code}}",
     "forget": "Oublier ce salon"
   },
-  "footer": { "credit": "Gratuit et open source. Créé par" },
-  "lang": { "label": "Langue" },
+  "footer": {
+    "credit": "Gratuit et open source. Créé par"
+  },
+  "lang": {
+    "label": "Langue"
+  },
   "room": {
     "people_one": "{{count}} personne ici",
     "people_other": "{{count}} personnes ici",
@@ -200,7 +204,9 @@
     "remove": "Retirer",
     "on": "Son ajouté depuis : {{name}}",
     "denied": "Les entrées audio n'ont pas pu être listées. Autorisez l'accès au micro pour ce site (il sert seulement à atteindre l'appareil que vous choisissez).",
-    "failed": "Cette entrée n'a pas pu être ouverte."
+    "failed": "Cette entrée n'a pas pu être ouverte.",
+    "silent": "Cette entrée est silencieuse. Vérifiez qu'elle n'est pas coupée et que c'est la bonne, ou essayez-en une autre.",
+    "suspended": "Le son n'a pas pu démarrer dans ce navigateur. Appuyez de nouveau sur « Ajouter », ou rechargez la page et repartagez."
   },
   "embed": {
     "label": {
@@ -228,7 +234,9 @@
     "reload": "Recharger",
     "later": "Plus tard"
   },
-  "hint": { "more": "Plus d'informations" },
+  "hint": {
+    "more": "Plus d'informations"
+  },
   "list": {
     "title": "Liste à voir",
     "empty": "Rien pour l'instant. Collez un lien et appuyez sur Lire, ou utilisez + pour le mettre en attente. Le salon lit la suivante quand une vidéo se termine.",

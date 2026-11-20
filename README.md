@@ -376,6 +376,7 @@ Discord is a native app and can capture the operating system's audio. A website 
 The app works around it: while sharing a tab or window, **Add sound from a device** mixes any sound input into the share, without reconnecting anyone.
 On Linux (PulseAudio or PipeWire) pick the input named **Monitor of …**: that is everything you hear. Allow microphone access once so the browser shows the device names;
 the app only uses it to reach the device you pick, and turns echo cancellation and noise suppression off so music and film sound stay clean.
+After you press **Add** the app listens for a moment and warns you when that input is silent (muted, or the wrong one), so nobody shares in silence without knowing. A **microphone** works the same way: pick it in the same list.
 On macOS install a virtual audio device (BlackHole, Loopback) and pick it the same way.
 
 ### Your own STUN / TURN servers

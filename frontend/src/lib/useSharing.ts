@@ -191,16 +191,19 @@ export function useSharing({ send, onSignal, state, myId, connection, video, not
   /** Ask the browser for a tab or window and share it. Returns false when nothing was shared. */
   const startScreen = useCallback(async () => {
     notify(null)
+    // The mixer starts now, inside the click, so the browser lets it run (a context made after the picker may stay silent).
+    const audio = new AudioMix()
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true })
     } catch {
+      audio.close()
       notify(t('room.shareCancelled'))
       return false
     }
     // Video from the picker, sound through our own mixer so a device can be added to a running share.
     display.current = stream
-    const audio = new AudioMix()
+    mix.current?.close()
     mix.current = audio
     if (stream.getAudioTracks().length > 0) audio.add(new MediaStream(stream.getAudioTracks()))
     screen.current = new MediaStream([...stream.getVideoTracks(), audio.track])
@@ -230,11 +233,15 @@ export function useSharing({ send, onSignal, state, myId, connection, video, not
       setSoundBusy(true)
       setSoundError(null)
       try {
+        const mixer = mix.current
         const stream = await openAudioInput(id)
         deviceStream.current = stream
-        mix.current.add(stream)
+        mixer.add(stream)
         setDeviceOn(id)
         notify(null)
+        // Double check, so nobody shares in silence without knowing: is the mixer running, and is anything coming in?
+        if (!(await mixer.resume())) setSoundError(t('sound.suspended'))
+        else if ((await mixer.listen(2500)) < 0.003 && mix.current === mixer && deviceStream.current === stream) setSoundError(t('sound.silent'))
       } catch {
         setSoundError(t('sound.failed'))
       } finally {

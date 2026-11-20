@@ -25,8 +25,12 @@
     "backTo": "Zurück zum Raum {{code}}",
     "forget": "Diesen Raum vergessen"
   },
-  "footer": { "credit": "Kostenlos und Open Source. Gebaut von" },
-  "lang": { "label": "Sprache" },
+  "footer": {
+    "credit": "Kostenlos und Open Source. Gebaut von"
+  },
+  "lang": {
+    "label": "Sprache"
+  },
   "room": {
     "people_one": "{{count}} Person hier",
     "people_other": "{{count}} Personen hier",
@@ -200,7 +204,9 @@
     "remove": "Entfernen",
     "on": "Ton wird hinzugefügt von: {{name}}",
     "denied": "Die Tonquellen ließen sich nicht auflisten. Erlaube dieser Seite den Mikrofonzugriff (er dient nur dazu, das gewählte Gerät zu erreichen).",
-    "failed": "Diese Quelle ließ sich nicht öffnen."
+    "failed": "Diese Quelle ließ sich nicht öffnen.",
+    "silent": "Von diesem Eingang kommt kein Ton. Prüfe, ob er nicht stummgeschaltet und der richtige gewählt ist, oder probiere einen anderen.",
+    "suspended": "Der Ton ließ sich in diesem Browser nicht starten. Drücke noch einmal „Hinzufügen“ oder lade die Seite neu und teile erneut."
   },
   "embed": {
     "label": {
@@ -228,7 +234,9 @@
     "reload": "Neu laden",
     "later": "Später"
   },
-  "hint": { "more": "Mehr Informationen" },
+  "hint": {
+    "more": "Mehr Informationen"
+  },
   "list": {
     "title": "Merkliste",
     "empty": "Noch nichts da. Füge einen Link ein und drücke Abspielen, oder nimm +, um ihn für später vorzumerken. Der Raum spielt das nächste Video, wenn eins zu Ende ist.",

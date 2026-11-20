@@ -25,8 +25,12 @@
     "backTo": "Wróć do pokoju {{code}}",
     "forget": "Zapomnij ten pokój"
   },
-  "footer": { "credit": "Za darmo i open source. Stworzył" },
-  "lang": { "label": "Język" },
+  "footer": {
+    "credit": "Za darmo i open source. Stworzył"
+  },
+  "lang": {
+    "label": "Język"
+  },
   "room": {
     "people_one": "{{count}} osoba tutaj",
     "people_few": "{{count}} osoby tutaj",
@@ -208,7 +212,9 @@
     "remove": "Usuń",
     "on": "Dodawanie dźwięku z: {{name}}",
     "denied": "Nie udało się wypisać wejść dźwięku. Zezwól tej stronie na dostęp do mikrofonu (służy tylko do dotarcia do wybranego urządzenia).",
-    "failed": "Nie udało się otworzyć tego wejścia."
+    "failed": "Nie udało się otworzyć tego wejścia.",
+    "silent": "To wejście milczy. Sprawdź, czy nie jest wyciszone i czy wybrano właściwe, albo spróbuj innego.",
+    "suspended": "Dźwięk nie mógł się uruchomić w tej przeglądarce. Naciśnij „Dodaj” jeszcze raz albo odśwież stronę i zacznij udostępnianie od nowa."
   },
   "embed": {
     "label": {
@@ -236,7 +242,9 @@
     "reload": "Odśwież",
     "later": "Później"
   },
-  "hint": { "more": "Więcej informacji" },
+  "hint": {
+    "more": "Więcej informacji"
+  },
   "list": {
     "title": "Lista do obejrzenia",
     "empty": "Na razie pusto. Wklej link i naciśnij Odtwórz albo użyj +, aby dodać go do kolejki. Pokój sam włącza następny, gdy film się skończy.",

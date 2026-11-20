@@ -204,7 +204,9 @@
     "remove": "Remove",
     "on": "Adding sound from: {{name}}",
     "denied": "Sound inputs could not be listed. Allow microphone access for this site (it is only used to reach the device you pick).",
-    "failed": "That input could not be opened."
+    "failed": "That input could not be opened.",
+    "silent": "This input is silent. Check that it is not muted and that the right one is picked, or try another.",
+    "suspended": "The sound could not start in this browser. Press \"Add\" again, or reload the page and share once more."
   },
   "embed": {
     "label": {
